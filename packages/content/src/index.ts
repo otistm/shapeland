@@ -16,8 +16,12 @@ export { SLICE_CONTENT } from "./slice";
 export {
   AIM_HINT,
   BANNER_TEXT,
+  DIALOG_CUE_PAD,
+  DIALOG_CUE_TOUCH,
   NPC_LINES,
   NPC_NAME,
+  PAD_CONNECTED,
+  PAD_DISCONNECTED,
   REGION_NAME,
   STAGE_HINT,
 } from "./slice";

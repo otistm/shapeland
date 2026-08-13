@@ -1,4 +1,6 @@
 import {
+  BUTTON_ACT,
+  BUTTON_DIR,
   BUTTON_E,
   BUTTON_N,
   BUTTON_S,
@@ -55,4 +57,30 @@ export function dirFromMask(mask: number): number {
   const az = z < 0 ? -z : z;
   if (ax >= az) return x > 0 ? DIR_E : DIR_W;
   return z > 0 ? DIR_S : DIR_N;
+}
+
+/**
+ * Axis-lock an analog stick into a cardinal mask. Larger |component| wins and the
+ * other is discarded; equal magnitudes prefer X, matching `dirFromMask`. `y` is
+ * up-positive (north). Dead zone is inclusive (`>= dead` is live).
+ */
+export function analogToMask(x: number, y: number, dead: number): number {
+  const ax = x < 0 ? -x : x;
+  const ay = y < 0 ? -y : y;
+  if (ax >= ay) {
+    if (ax < dead) return 0;
+    return x > 0 ? BUTTON_E : BUTTON_W;
+  }
+  if (ay < dead) return 0;
+  return y > 0 ? BUTTON_N : BUTTON_S;
+}
+
+/** Touch dir beats pad dir beats keyboard dir. Jump/pivot bits OR together. */
+export function mergeInputMasks(keyboard: number, touch: number, pad: number): number {
+  const actions = (keyboard | touch | pad) & BUTTON_ACT;
+  const touchDir = touch & BUTTON_DIR;
+  if (touchDir !== 0) return touchDir | actions;
+  const padDir = pad & BUTTON_DIR;
+  if (padDir !== 0) return padDir | actions;
+  return (keyboard & BUTTON_DIR) | actions;
 }

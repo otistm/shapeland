@@ -12,4 +12,5 @@ export const FRAME_BUDGET_MS = {
   vfx: 4,
   world: 1,
   terrain: 1,
+  input: 1,
 } as const;

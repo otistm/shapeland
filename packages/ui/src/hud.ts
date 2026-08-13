@@ -5,6 +5,8 @@ import {
   AIM_HINT,
   type AbilityKind,
   BANNER_TEXT,
+  DIALOG_CUE_PAD,
+  DIALOG_CUE_TOUCH,
   NPC_LINES,
   NPC_NAME,
   REGION_NAME,
@@ -41,6 +43,15 @@ import {
 export interface HudHandle {
   render(snapshot: SimSnapshot, alpha: number, backend?: string): void;
   dispose(): void;
+  setPadConnected(connected: boolean): void;
+  announce(text: string, ms?: number): void;
+  trySpeak(): void;
+  openEquip(): void;
+  commitEquip(): void;
+  advanceDialog(): void;
+  modalOpen(): boolean;
+  dialogIsOpen(): boolean;
+  equipIsOpen(): boolean;
 }
 
 export interface HudOptions {
@@ -75,7 +86,7 @@ export function mountHud(host: HTMLElement, opts: HudOptions): HudHandle {
   equipBtn.className = "tbtn nudge";
   equipBtn.id = "equipBtn";
   equipBtn.type = "button";
-  equipBtn.innerHTML = `EQUIP<span class="dot"></span>`;
+  equipBtn.innerHTML = `EQUIP<span class="dot"></span><span class="pad">START</span>`;
   topbar.appendChild(equipBtn);
 
   const overlay = document.createElement("div");
@@ -110,15 +121,28 @@ export function mountHud(host: HTMLElement, opts: HudOptions): HudHandle {
   speakBtn.className = "tbtn";
   speakBtn.id = "speak";
   speakBtn.type = "button";
-  speakBtn.textContent = "SPEAK";
+  speakBtn.innerHTML = `<span class="btn">Y</span>SPEAK`;
   const dialog = document.createElement("div");
   dialog.id = "dialog";
-  dialog.innerHTML = `<div class="who">${NPC_NAME}</div><div class="line"></div><div class="cue">TAP TO CONTINUE</div>`;
+  dialog.innerHTML = `<div class="who">${NPC_NAME}</div><div class="line"></div><div class="cue">${DIALOG_CUE_TOUCH}</div>`;
+  const stick = document.createElement("div");
+  stick.id = "stick";
+  stick.innerHTML =
+    '<svg id="dpad" viewBox="0 0 100 100" aria-hidden="true">' +
+    '<polygon class="frame" points="30,0 70,0 70,30 100,30 100,70 70,70 70,100 30,100 30,70 0,70 0,30 30,30"/>' +
+    "</svg>" +
+    '<div id="knob"></div>';
+  const pivotBtn = document.createElement("button");
+  pivotBtn.id = "pivot";
+  pivotBtn.type = "button";
+  pivotBtn.innerHTML = `<span class="gl">⟳</span>PIVOT<span class="pad">B</span>`;
   root.appendChild(locname);
   root.appendChild(banner);
   root.appendChild(footer);
   root.appendChild(speakBtn);
   root.appendChild(dialog);
+  root.appendChild(stick);
+  root.appendChild(pivotBtn);
   host.appendChild(root);
 
   const netEl = overlay.querySelector("#net");
@@ -133,6 +157,7 @@ export function mountHud(host: HTMLElement, opts: HudOptions): HudHandle {
   const locTitle = locname.querySelector(".t");
   const hintEl = footer.querySelector("#hintEl");
   const dialogLine = dialog.querySelector(".line");
+  const dialogCue = dialog.querySelector(".cue");
   if (
     !(netEl instanceof HTMLElement) ||
     !(trayEl instanceof HTMLElement) ||
@@ -145,7 +170,8 @@ export function mountHud(host: HTMLElement, opts: HudOptions): HudHandle {
     !(dbg instanceof HTMLElement) ||
     !(locTitle instanceof HTMLElement) ||
     !(hintEl instanceof HTMLElement) ||
-    !(dialogLine instanceof HTMLElement)
+    !(dialogLine instanceof HTMLElement) ||
+    !(dialogCue instanceof HTMLElement)
   ) {
     throw new Error("hud mount failed");
   }
@@ -177,6 +203,7 @@ export function mountHud(host: HTMLElement, opts: HudOptions): HudHandle {
   let locUntil = 0;
   let bannerUntil = 0;
   let lastBannerTick = -1;
+  let padConnected = false;
   let drag: DragState | null = null;
   let selected: number | null = null;
   let pending: { kind: number; face: number | null; x0: number; y0: number } | null = null;
@@ -234,6 +261,16 @@ export function mountHud(host: HTMLElement, opts: HudOptions): HudHandle {
       );
       tray.appendChild(c);
     }
+  };
+
+  const paintCue = () => {
+    dialogCue.textContent = padConnected ? DIALOG_CUE_PAD : DIALOG_CUE_TOUCH;
+  };
+
+  const showBanner = (text: string, ms: number) => {
+    banner.textContent = text;
+    banner.classList.add("show");
+    bannerUntil = Date.now() + ms;
   };
 
   const emitModal = () => {
@@ -423,9 +460,7 @@ export function mountHud(host: HTMLElement, opts: HudOptions): HudHandle {
       }
       if (snapshot.world.banner !== 0 && snapshot.tick !== lastBannerTick) {
         lastBannerTick = snapshot.tick;
-        banner.textContent = BANNER_TEXT[snapshot.world.banner] ?? "";
-        banner.classList.add("show");
-        bannerUntil = now + 3500;
+        showBanner(BANNER_TEXT[snapshot.world.banner] ?? "", 3500);
       }
       if (bannerUntil > 0 && now >= bannerUntil) {
         banner.classList.remove("show");
@@ -436,9 +471,10 @@ export function mountHud(host: HTMLElement, opts: HudOptions): HudHandle {
       const canSpeak =
         snapshot.world.npcRange !== 0 && !open && !dialogOpen && snapshot.world.sliceOn !== 0;
       speakBtn.classList.toggle("on", canSpeak);
+      pivotBtn.classList.toggle("armed", snapshot.move.pivotArmed !== 0);
       if (dialogOpen && snapshot.world.npcRange === 0) setDialog(false);
       dbg.textContent = [
-        "SHAPELAND  ·  phase 6",
+        "SHAPELAND  ·  phase 7",
         backend ? `backend       ${backend}` : "",
         `tick           ${snapshot.tick}`,
         `alpha          ${alpha.toFixed(3)}`,
@@ -451,6 +487,34 @@ export function mountHud(host: HTMLElement, opts: HudOptions): HudHandle {
       ]
         .filter((line) => line !== "")
         .join("\n");
+    },
+    setPadConnected(connected) {
+      padConnected = connected;
+      paintCue();
+    },
+    announce(text, ms = 2200) {
+      showBanner(text, ms);
+    },
+    trySpeak() {
+      if (latest?.world.npcRange !== 0 && !open && !dialogOpen) openDialog();
+    },
+    openEquip() {
+      setOpen(true);
+    },
+    commitEquip() {
+      commit();
+    },
+    advanceDialog: () => {
+      advanceDialog();
+    },
+    modalOpen() {
+      return open || dialogOpen;
+    },
+    dialogIsOpen() {
+      return dialogOpen;
+    },
+    equipIsOpen() {
+      return open;
     },
     dispose() {
       host.replaceChildren();

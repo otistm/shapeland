@@ -84,6 +84,8 @@ export const BUTTON_N = 1 << 2;
 export const BUTTON_S = 1 << 3;
 export const BUTTON_JUMP = 1 << 4;
 export const BUTTON_PIVOT = 1 << 5;
+export const BUTTON_DIR = BUTTON_E | BUTTON_W | BUTTON_N | BUTTON_S;
+export const BUTTON_ACT = BUTTON_JUMP | BUTTON_PIVOT;
 
 export const DIR_NONE = 0;
 export const DIR_E = 1;

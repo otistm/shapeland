@@ -1,13 +1,26 @@
-import { SLICE_CONTENT, hashContent } from "@shapeland/content";
+import { PAD_CONNECTED, PAD_DISCONNECTED, SLICE_CONTENT, hashContent } from "@shapeland/content";
 import {
+  bindCanvasJump,
+  bindHoldButton,
   bindKeyboard,
+  bindTouchStick,
+  createPadPoller,
   loadLoadoutJson,
   nowSeconds,
   probeCapabilities,
+  routePad,
   saveLoadoutJson,
 } from "@shapeland/platform";
 import { createGamePresenter } from "@shapeland/render/presenter";
-import { SimLoop, copySnapshot, parseLoadout, serializeLoadout } from "@shapeland/sim";
+import {
+  BUTTON_JUMP,
+  BUTTON_PIVOT,
+  SimLoop,
+  copySnapshot,
+  mergeInputMasks,
+  parseLoadout,
+  serializeLoadout,
+} from "@shapeland/sim";
 import { bakeAbilityCanvases, mountHud } from "@shapeland/ui";
 
 const seed = 1;
@@ -36,12 +49,27 @@ if (!(canvas instanceof HTMLCanvasElement) || !(hudHost instanceof HTMLElement))
   throw new Error("missing #view or #hud");
 }
 
-let modal = false;
+let keyMask = 0;
+let touchDir = 0;
+let touchPivot = 0;
+let touchJump = 0;
+let padMask = 0;
+let padWas = false;
+let applyMask = (): void => {
+  sim.hold(0);
+};
+let clearStick = (): void => {};
+
 const hud = mountHud(hudHost, {
   canvases,
   onModal: (open) => {
-    modal = open;
-    if (open) sim.hold(0);
+    if (open) {
+      sim.hold(0);
+      touchDir = 0;
+      touchPivot = 0;
+      touchJump = 0;
+      clearStick();
+    } else applyMask();
   },
   onCommit: (faces) => {
     const ok = sim.world.commitFaces(faces);
@@ -52,6 +80,54 @@ const hud = mountHud(hudHost, {
     return ok;
   },
 });
+
+applyMask = () => {
+  if (hud.modalOpen()) {
+    sim.hold(0);
+    return;
+  }
+  sim.hold(mergeInputMasks(keyMask, touchDir | touchPivot | touchJump, padMask));
+};
+
+const stickEl = hudHost.querySelector("#stick");
+const knobEl = hudHost.querySelector("#knob");
+const pivotEl = hudHost.querySelector("#pivot");
+if (
+  !(stickEl instanceof HTMLElement) ||
+  !(knobEl instanceof HTMLElement) ||
+  !(pivotEl instanceof HTMLElement)
+) {
+  throw new Error("missing touch controls");
+}
+
+const stick = bindTouchStick(
+  stickEl,
+  knobEl,
+  (mask) => {
+    touchDir = mask;
+    applyMask();
+  },
+  () => hud.modalOpen() || padWas,
+);
+clearStick = () => stick.clear();
+bindHoldButton(
+  pivotEl,
+  (down) => {
+    touchPivot = down ? BUTTON_PIVOT : 0;
+    applyMask();
+  },
+  () => hud.modalOpen() || padWas,
+);
+bindCanvasJump(
+  canvas,
+  (down) => {
+    touchJump = down ? BUTTON_JUMP : 0;
+    applyMask();
+  },
+  () => hud.modalOpen(),
+);
+
+const pad = createPadPoller();
 
 const boot = async () => {
   const presenter = await createGamePresenter(canvas, {
@@ -70,7 +146,8 @@ const boot = async () => {
   window.addEventListener("resize", resize);
 
   bindKeyboard(window, (mask) => {
-    if (!modal) sim.hold(mask);
+    keyMask = mask;
+    applyMask();
   });
 
   let last = nowSeconds();
@@ -78,6 +155,23 @@ const boot = async () => {
     const now = nowMs / 1000;
     const dt = now - last;
     last = now;
+
+    const sample = pad.poll();
+    if (sample.connected !== padWas) {
+      padWas = sample.connected;
+      document.body.classList.toggle("pad", sample.connected);
+      hud.setPadConnected(sample.connected);
+      hud.announce(sample.connected ? PAD_CONNECTED : PAD_DISCONNECTED);
+      if (sample.connected) stick.clear();
+    }
+    const routed = routePad(sample, hud.dialogIsOpen(), hud.equipIsOpen());
+    if (routed.route === "confirm") hud.advanceDialog();
+    else if (routed.route === "speak") hud.trySpeak();
+    else if (routed.route === "open-equip") hud.openEquip();
+    else if (routed.route === "close-equip") hud.commitEquip();
+    padMask = routed.mask;
+    applyMask();
+
     sim.frame(dt);
     presenter.present(sim.prev, sim.cur, sim.alpha, dt);
     hud.render(sim.cur, sim.alpha, presenter.backend);

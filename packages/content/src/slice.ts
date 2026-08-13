@@ -24,6 +24,11 @@ export const STAGE_HINT = [
 
 export const AIM_HINT = "THEY READ THE SQUARES BEFORE THEY FIRE";
 
+export const DIALOG_CUE_TOUCH = "TAP TO CONTINUE";
+export const DIALOG_CUE_PAD = "A TO CONTINUE";
+export const PAD_CONNECTED = "CONTROLLER CONNECTED";
+export const PAD_DISCONNECTED = "CONTROLLER DISCONNECTED";
+
 export const NPC_NAME = "THE KEEPER";
 
 export const NPC_LINES: ReadonlyArray<ReadonlyArray<string>> = [

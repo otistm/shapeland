@@ -1,4 +1,5 @@
 import { BUTTON_E, BUTTON_JUMP, BUTTON_N, BUTTON_PIVOT, BUTTON_S, BUTTON_W } from "@shapeland/sim";
+import { probeGamepadApi } from "./pad";
 
 export interface Capabilities {
   canvas2d: boolean;
@@ -20,7 +21,7 @@ export function probeCapabilities(): Capabilities {
     canvas2d: twoD.getContext("2d") !== null,
     webgpu: "gpu" in navigator,
     webgl2,
-    gamepad: "getGamepads" in navigator,
+    gamepad: probeGamepadApi(),
   };
 }
 
@@ -69,3 +70,22 @@ export function bindKeyboard(target: EventTarget, onMask: (mask: number) => void
 }
 
 export { loadLoadoutJson, saveLoadoutJson, readStore, writeStore } from "./storage";
+export {
+  PAD_POLICY_MSG,
+  createPadPoller,
+  probeGamepadApi,
+  risingGroup,
+  routePad,
+  type PadPoller,
+  type PadSample,
+  type PadRoute,
+} from "./pad";
+export {
+  bindCanvasJump,
+  bindHoldButton,
+  bindTouchStick,
+  lockStick,
+  stickToMask,
+  type StickState,
+  type TouchStickHandle,
+} from "./stick";
