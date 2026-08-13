@@ -10,5 +10,6 @@ describe("frame budget ledger", () => {
     expect(FRAME_BUDGET_MS.terrain).toBe(1);
     expect(FRAME_BUDGET_MS.input).toBe(1);
     expect(FRAME_BUDGET_MS.camera).toBe(1);
+    expect(FRAME_BUDGET_MS.ice).toBe(1);
   });
 });

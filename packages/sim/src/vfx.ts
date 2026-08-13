@@ -9,15 +9,17 @@ import {
   SCORCH_MAX,
   VFX_PULSE_BOLT,
   VFX_PULSE_FIRE,
+  VFX_PULSE_ICE,
   VFX_PULSE_NONE,
   VFX_PULSE_PHYS,
 } from "./constants";
 import type { FireField } from "./fire";
 import { fnv1aF64, fnv1aStart, fnv1aU32 } from "./hash";
-import { ABILITY_FIRE, ABILITY_LIGHTNING, ABILITY_PHYSICAL } from "./loadout";
+import { freezePatch, iceMelt } from "./ice";
+import { ABILITY_FIRE, ABILITY_ICE, ABILITY_LIGHTNING, ABILITY_PHYSICAL } from "./loadout";
 import { UP } from "./orientation";
 import { type RngBank, sfc32Next } from "./rng";
-import { packXZ } from "./terrain";
+import { packXZ, type Terrain } from "./terrain";
 
 export interface VfxHost {
   x: number;
@@ -36,6 +38,11 @@ export interface VfxHost {
   scorchCount: number;
   scorchHash: number;
   rng: RngBank;
+  terrain: Terrain;
+  ice: Uint32Array;
+  iceH: Int8Array;
+  iceCount: number;
+  iceHash: number;
 }
 
 export function burnIntensity(burnT: number, burnDur: number): number {
@@ -69,6 +76,7 @@ function markScorch(w: VfxHost, x: number, z: number, h: number): void {
   w.scorchH[i] = h | 0;
   w.scorchCount = i + 1;
   w.scorchHash = fnv1aU32(w.scorchHash === 0 ? fnv1aStart() : w.scorchHash, key);
+  iceMelt(w, x, z);
 }
 
 function abilityOnUp(w: VfxHost): number {
@@ -77,8 +85,8 @@ function abilityOnUp(w: VfxHost): number {
 
 export function stepVfx(w: VfxHost): void {
   w.vfxPulse = VFX_PULSE_NONE;
+  const kind = abilityOnUp(w);
   if ((w.flags & FLAG_AIR_LAND) !== 0) {
-    const kind = abilityOnUp(w);
     if (kind === ABILITY_FIRE) {
       ignite(w);
       w.vfxPulse = VFX_PULSE_FIRE;
@@ -88,11 +96,18 @@ export function stepVfx(w: VfxHost): void {
       w.boltSeed = sfc32Next(w.rng.combat);
     } else if (kind === ABILITY_PHYSICAL) {
       w.vfxPulse = VFX_PULSE_PHYS;
+    } else if (kind === ABILITY_ICE) {
+      w.vfxPulse = VFX_PULSE_ICE;
     }
   }
 
   const bi = burnIntensity(w.burnT, w.burnDur);
   if ((w.flags & FLAG_LAND) !== 0 && bi > 0.05) markScorch(w, w.x, w.z, w.h);
+
+  // Ice-up land paints after burn-trail scorch so ice and fire stay mutually exclusive.
+  if ((w.flags & FLAG_AIR_LAND) !== 0 && kind === ABILITY_ICE) {
+    freezePatch(w, w.x, w.z);
+  }
 
   if (w.burnDur > 0) {
     w.burnT += 1;

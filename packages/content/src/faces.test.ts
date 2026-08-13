@@ -1,4 +1,4 @@
-import { CUBE_BODY, FIRE, GLYPH_HALO } from "@shapeland/sim";
+import { CUBE_BODY, FIRE, GLYPH_HALO, ICE } from "@shapeland/sim";
 import { describe, expect, it } from "vitest";
 import { ABILITY_KINDS, type FaceBrush, drawAbilityFace } from "./faces";
 
@@ -42,5 +42,8 @@ describe("face canvases", () => {
     const fire = new Probe();
     drawAbilityFace(fire, "fire");
     expect(fire.fills).toContain(FIRE);
+    const ice = new Probe();
+    drawAbilityFace(ice, "ice");
+    expect(ice.fills).toContain(ICE);
   });
 });

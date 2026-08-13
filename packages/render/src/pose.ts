@@ -7,6 +7,7 @@ import {
   MODE_CROUCH,
   MODE_FALL,
   MODE_ROLL,
+  MODE_SLIDE,
   MODE_TUCK,
   ROLL_LIFT,
   ROLL_LIFT_STEP,
@@ -76,7 +77,7 @@ export function cameraTarget(s: SimSnapshot): CameraTarget {
   const m = s.move;
   const dx = DIR_DX[m.dir] ?? 0;
   const dz = DIR_DZ[m.dir] ?? 0;
-  if (m.mode === MODE_ROLL) {
+  if (m.mode === MODE_ROLL || m.mode === MODE_SLIDE) {
     const t = progress(m.phase, m.duration);
     return {
       followX: m.startX + (m.destX - m.startX) * t,
@@ -125,6 +126,15 @@ export function visualPose(s: SimSnapshot): Pose {
       y: m.startY + 0.5 + (m.destY - m.startY) * e + lift * Math.sin(e * Math.PI),
       z: m.startZ + (m.destZ - m.startZ) * e,
       quat: qmul(qSpin, q0),
+    };
+  }
+  if (m.mode === MODE_SLIDE) {
+    const t = progress(m.phase, m.duration);
+    return {
+      x: m.startX + (m.destX - m.startX) * t,
+      y: m.startY + 0.5 + (m.destY - m.startY) * t,
+      z: m.startZ + (m.destZ - m.startZ) * t,
+      quat: orientationQuaternion(m.startOri),
     };
   }
   if (m.mode === MODE_TUCK) {

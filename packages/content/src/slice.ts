@@ -12,6 +12,7 @@ export const BANNER_TEXT = [
   "A SECOND GLYPH ANSWERS",
   "THE SHAPE CRACKS",
   "THE APPROACH IS CLEAR",
+  "ICE SEALS ITSELF TO YOUR UNDERSIDE",
 ] as const;
 
 export const STAGE_HINT = [

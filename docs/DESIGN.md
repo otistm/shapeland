@@ -222,9 +222,9 @@ phase's proofs.
 7. **Input breadth** — gamepad, prompts, modal capture. *Gate: pad suite.*
 8. **Feel pass** — shake policy, linear camera feed, ground tracking. *Gate: camera policy, bob,
    ripple.*
-9. **Open world** — streaming, districts, landmark bands, hub topology and shortcuts, bestiary,
-   corpse run, color-return. *Gate: pacing audit per district, plus every new socket's proof and
-   every new shape's movement-grammar suite.*
+9. **Ice** — freeze patch, slide without extra quarter-turns. *Gate: ice grammar proofs; socket BFS
+   pins unchanged.* Open world (streaming, districts, bestiary, corpse run, color-return) stays
+   deferred — see ADR 0011.
 
 ---
 

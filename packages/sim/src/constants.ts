@@ -58,6 +58,7 @@ export const CUBE_BODY = "#4a7fd4";
 export const FIRE = "#ff5a1f";
 export const LIGHTNING = "#3b46e0";
 export const PHYSICAL = "#3a3a44";
+export const ICE = "#1aa7c4";
 export const NORMAL = "#c2beb8";
 export const GLYPH_HALO = "rgba(238,244,252,0.95)";
 export const GRID_MAJOR = "rgba(132,148,196,0.78)";
@@ -106,6 +107,7 @@ export const MODE_TUCK = 2;
 export const MODE_CROUCH = 3;
 export const MODE_AIR = 4;
 export const MODE_FALL = 5;
+export const MODE_SLIDE = 6;
 
 export const FLAG_REFUSE = 1 << 0;
 export const FLAG_LAND = 1 << 1;
@@ -154,11 +156,15 @@ export const SPREAD_R = 2.6;
 export const SPREAD_DUR = 0.45;
 
 export const SCORCH_MAX = 256;
+export const ICE_MAX = 256;
+export const SLIDE_MAX = 8;
+export const SLIDE_CELL_TICKS = 10;
 
 export const VFX_PULSE_NONE = 0;
 export const VFX_PULSE_FIRE = 1;
 export const VFX_PULSE_BOLT = 2;
 export const VFX_PULSE_PHYS = 3;
+export const VFX_PULSE_ICE = 4;
 
 export const SHAKE_FIRE = 0.06;
 export const SHAKE_BOLT = 0.13;
@@ -167,6 +173,7 @@ export const SHAKE_HURT = 0.18;
 export const SHAKE_DOOR = 0.15;
 export const SHAKE_SENTRY = 0.14;
 export const SHAKE_BLAST = 0.05;
+export const SHAKE_ICE = 0.05;
 
 export const TELE_COLOR = 0xb8412a;
 
@@ -200,6 +207,7 @@ export const BANNER_DOOR = 2;
 export const BANNER_GLYPH = 3;
 export const BANNER_CRACK = 4;
 export const BANNER_CLEAR = 5;
+export const BANNER_ICE = 6;
 
 export const FLAG_HURT = 1 << 6;
 export const FLAG_KILL = 1 << 7;

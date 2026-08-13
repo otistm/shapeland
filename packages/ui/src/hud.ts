@@ -14,6 +14,7 @@ import {
   kindOf,
 } from "@shapeland/content";
 import {
+  ABILITY_MAX,
   ABILITY_NORMAL,
   CUBE_BODY,
   DOWN,
@@ -212,7 +213,7 @@ export function mountHud(host: HTMLElement, opts: HudOptions): HudHandle {
 
   const foundIds = (found: number): number[] => {
     const ids: number[] = [];
-    for (let id = 1; id <= 3; id++) if (abilityFound(found, id)) ids.push(id);
+    for (let id = 1; id <= ABILITY_MAX; id++) if (abilityFound(found, id)) ids.push(id);
     ids.push(ABILITY_NORMAL);
     return ids;
   };
@@ -474,7 +475,7 @@ export function mountHud(host: HTMLElement, opts: HudOptions): HudHandle {
       pivotBtn.classList.toggle("armed", snapshot.move.pivotArmed !== 0);
       if (dialogOpen && snapshot.world.npcRange === 0) setDialog(false);
       dbg.textContent = [
-        "SHAPELAND  ·  phase 8",
+        "SHAPELAND  ·  phase 9",
         backend ? `backend       ${backend}` : "",
         `tick           ${snapshot.tick}`,
         `alpha          ${alpha.toFixed(3)}`,

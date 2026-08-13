@@ -1,4 +1,4 @@
-import { FIRE_MAX, SCORCH_MAX, TURRET_COUNT } from "./constants";
+import { FIRE_MAX, ICE_MAX, SCORCH_MAX, TURRET_COUNT } from "./constants";
 
 export interface LayeredHashes {
   player: number;
@@ -47,6 +47,8 @@ export interface VfxSnapshot {
   fireCount: number;
   scorchCount: number;
   scorchHash: number;
+  iceCount: number;
+  iceHash: number;
   groundH: number;
   fireX: Float32Array;
   fireY: Float32Array;
@@ -58,6 +60,8 @@ export interface VfxSnapshot {
   fireSeed: Float32Array;
   scorch: Uint32Array;
   scorchH: Int8Array;
+  ice: Uint32Array;
+  iceH: Int8Array;
 }
 
 export interface WorldSliceSnapshot {
@@ -66,6 +70,7 @@ export interface WorldSliceSnapshot {
   doorOpen: number;
   shrineTaken: number;
   glyphTaken: number;
+  iceTaken: number;
   iframes: number;
   npcRange: number;
   banner: number;
@@ -125,6 +130,8 @@ export function createVfxSnapshot(): VfxSnapshot {
     fireCount: 0,
     scorchCount: 0,
     scorchHash: 0,
+    iceCount: 0,
+    iceHash: 0,
     groundH: 0,
     fireX: new Float32Array(FIRE_MAX),
     fireY: new Float32Array(FIRE_MAX),
@@ -136,6 +143,8 @@ export function createVfxSnapshot(): VfxSnapshot {
     fireSeed: new Float32Array(FIRE_MAX),
     scorch: new Uint32Array(SCORCH_MAX),
     scorchH: new Int8Array(SCORCH_MAX),
+    ice: new Uint32Array(ICE_MAX),
+    iceH: new Int8Array(ICE_MAX),
   };
 }
 
@@ -146,6 +155,7 @@ export function createWorldSliceSnapshot(): WorldSliceSnapshot {
     doorOpen: 1,
     shrineTaken: 0,
     glyphTaken: 0,
+    iceTaken: 0,
     iframes: 0,
     npcRange: 0,
     banner: 0,
@@ -209,6 +219,8 @@ export function copyVfx(src: VfxSnapshot, dest: VfxSnapshot): void {
   dest.fireCount = src.fireCount;
   dest.scorchCount = src.scorchCount;
   dest.scorchHash = src.scorchHash;
+  dest.iceCount = src.iceCount;
+  dest.iceHash = src.iceHash;
   dest.groundH = src.groundH;
   copyN(src.fireX, dest.fireX, src.fireCount);
   copyN(src.fireY, dest.fireY, src.fireCount);
@@ -221,6 +233,10 @@ export function copyVfx(src: VfxSnapshot, dest: VfxSnapshot): void {
   for (let i = 0; i < src.scorchCount; i++) {
     dest.scorch[i] = src.scorch[i] ?? 0;
     dest.scorchH[i] = src.scorchH[i] ?? 0;
+  }
+  for (let i = 0; i < src.iceCount; i++) {
+    dest.ice[i] = src.ice[i] ?? 0;
+    dest.iceH[i] = src.iceH[i] ?? 0;
   }
 }
 
@@ -240,6 +256,8 @@ export function vfxEqual(a: VfxSnapshot, b: VfxSnapshot): boolean {
     a.fireCount !== b.fireCount ||
     a.scorchCount !== b.scorchCount ||
     a.scorchHash !== b.scorchHash ||
+    a.iceCount !== b.iceCount ||
+    a.iceHash !== b.iceHash ||
     a.groundH !== b.groundH
   ) {
     return false;
@@ -251,6 +269,9 @@ export function vfxEqual(a: VfxSnapshot, b: VfxSnapshot): boolean {
   for (let i = 0; i < a.scorchCount; i++) {
     if (a.scorch[i] !== b.scorch[i] || a.scorchH[i] !== b.scorchH[i]) return false;
   }
+  for (let i = 0; i < a.iceCount; i++) {
+    if (a.ice[i] !== b.ice[i] || a.iceH[i] !== b.iceH[i]) return false;
+  }
   return true;
 }
 
@@ -260,6 +281,7 @@ export function copyWorldSlice(src: WorldSliceSnapshot, dest: WorldSliceSnapshot
   dest.doorOpen = src.doorOpen;
   dest.shrineTaken = src.shrineTaken;
   dest.glyphTaken = src.glyphTaken;
+  dest.iceTaken = src.iceTaken;
   dest.iframes = src.iframes;
   dest.npcRange = src.npcRange;
   dest.banner = src.banner;
@@ -337,6 +359,7 @@ export function snapshotsEqual(a: SimSnapshot, b: SimSnapshot): boolean {
     a.world.doorOpen === b.world.doorOpen &&
     a.world.shrineTaken === b.world.shrineTaken &&
     a.world.glyphTaken === b.world.glyphTaken &&
+    a.world.iceTaken === b.world.iceTaken &&
     a.world.iframes === b.world.iframes &&
     a.world.npcRange === b.world.npcRange &&
     a.world.banner === b.world.banner &&

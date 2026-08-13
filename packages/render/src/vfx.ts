@@ -1,14 +1,17 @@
 import {
   CAM_KICK_PHYS,
   FIRE_MAX,
+  ICE_MAX,
   SHAKE_BOLT,
   SHAKE_FIRE,
+  SHAKE_ICE,
   SHAKE_PHYS,
   SPREAD_DUR,
   SPREAD_R,
   type SimSnapshot,
   VFX_PULSE_BOLT,
   VFX_PULSE_FIRE,
+  VFX_PULSE_ICE,
   VFX_PULSE_PHYS,
   burnIntensity,
   generateBolt,
@@ -137,6 +140,13 @@ export function createVfx(scene: Scene, rig: CameraRig): VfxSystem {
   decalMesh.renderOrder = 1;
   decalMesh.count = 0;
   scene.add(decalMesh);
+
+  const iceMat = makeVfxUnlit(0x1aa7c4, 0.42);
+  const iceMesh = new InstancedMesh(new PlaneGeometry(1.15, 1.15), iceMat, ICE_MAX);
+  iceMesh.frustumCulled = false;
+  iceMesh.renderOrder = 1;
+  iceMesh.count = 0;
+  scene.add(iceMesh);
 
   const ionMat = makeVfxUnlit(0x3b46e0, 0.45);
   const ionMesh = new Mesh(new PlaneGeometry(2.8, 2.8), ionMat);
@@ -285,6 +295,17 @@ export function createVfx(scene: Scene, rig: CameraRig): VfxSystem {
             thump.visible = true;
             lightLife[2] = 0.3;
           }
+        } else if (v.pulse === VFX_PULSE_ICE) {
+          impactShake(rig, SHAKE_ICE); // impact: ice
+          const chill = lights[3];
+          if (chill) {
+            chill.color.setHex(0x1aa7c4);
+            chill.intensity = 2.4;
+            chill.distance = 6;
+            chill.position.set(cube.x, cube.y + 0.35, cube.z);
+            chill.visible = true;
+            lightLife[3] = 0.55;
+          }
         }
       }
 
@@ -321,6 +342,18 @@ export function createVfx(scene: Scene, rig: CameraRig): VfxSystem {
       }
       decalMesh.count = scorchN;
       decalMesh.instanceMatrix.needsUpdate = true;
+
+      const iceN = v.iceCount < ICE_MAX ? v.iceCount : ICE_MAX;
+      for (let i = 0; i < iceN; i++) {
+        const cell = unpackXZ(v.ice[i] ?? 0);
+        dummy.position.set(cell.x, (v.iceH[i] ?? 0) + 0.018, cell.z);
+        dummy.scale.set(1, 1, 1);
+        dummy.rotation.set(-Math.PI / 2, 0, Math.PI / 4);
+        dummy.updateMatrix();
+        iceMesh.setMatrixAt(i, dummy.matrix);
+      }
+      iceMesh.count = iceN;
+      iceMesh.instanceMatrix.needsUpdate = true;
 
       const bi = burnIntensity(v.burnT, v.burnDur);
       const fireLight = lights[0];
@@ -415,6 +448,7 @@ export function createVfx(scene: Scene, rig: CameraRig): VfxSystem {
     dispose() {
       fireMesh.removeFromParent();
       decalMesh.removeFromParent();
+      iceMesh.removeFromParent();
       ionMesh.removeFromParent();
       craterMesh.removeFromParent();
       coreMesh.removeFromParent();
@@ -424,6 +458,7 @@ export function createVfx(scene: Scene, rig: CameraRig): VfxSystem {
       fireGeo.dispose();
       fireMat.dispose();
       decalMat.dispose();
+      iceMat.dispose();
       ionMat.dispose();
       craterMat.dispose();
       coreMat.dispose();

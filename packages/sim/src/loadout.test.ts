@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   ABILITY_FIRE,
+  ABILITY_ICE,
   ABILITY_LIGHTNING,
   ABILITY_NORMAL,
   ABILITY_PHYSICAL,
@@ -45,6 +46,7 @@ describe("found-gating", () => {
 describe("axis clash", () => {
   it("flags opposite non-normal faces and ignores a blank opposite", () => {
     expect(axisClash([ABILITY_FIRE, ABILITY_LIGHTNING, 0, 0, 0, 0])).toBe(true);
+    expect(axisClash([ABILITY_FIRE, ABILITY_ICE, 0, 0, 0, 0])).toBe(true);
     expect(axisClash([ABILITY_FIRE, 0, 0, 0, 0, 0])).toBe(false);
   });
 });

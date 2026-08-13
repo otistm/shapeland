@@ -8,10 +8,11 @@ import {
   FLAG_LAND,
   VFX_PULSE_BOLT,
   VFX_PULSE_FIRE,
+  VFX_PULSE_ICE,
   VFX_PULSE_NONE,
   VFX_PULSE_PHYS,
 } from "./constants";
-import { ABILITY_FIRE, ABILITY_LIGHTNING, ABILITY_PHYSICAL } from "./loadout";
+import { ABILITY_FIRE, ABILITY_ICE, ABILITY_LIGHTNING, ABILITY_PHYSICAL } from "./loadout";
 import { World } from "./world";
 
 const SEED = 1;
@@ -52,6 +53,13 @@ describe("vfx landing pulses", () => {
     expect(phys.commitFaces([ABILITY_PHYSICAL, 0, 0, 0, 0, 0])).toBe(true);
     jumpUntilLand(phys);
     expect(phys.vfxPulse).toBe(VFX_PULSE_PHYS);
+
+    const ice = new World({ seed: SEED, contentHash: CONTENT });
+    ice.grant(ABILITY_ICE);
+    expect(ice.commitFaces([ABILITY_ICE, 0, 0, 0, 0, 0])).toBe(true);
+    jumpUntilLand(ice);
+    expect(ice.vfxPulse).toBe(VFX_PULSE_ICE);
+    expect(ice.iceCount).toBe(21);
   });
 
   it("does not pulse on a roll land", () => {

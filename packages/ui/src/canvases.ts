@@ -1,11 +1,10 @@
-import { type AbilityKind, FACE_SIZE, drawAbilityFace } from "@shapeland/content";
+import { type AbilityKind, ABILITY_KINDS, FACE_SIZE, drawAbilityFace } from "@shapeland/content";
 
 export type AbilityCanvases = Record<AbilityKind, HTMLCanvasElement>;
 
 export function bakeAbilityCanvases(): AbilityCanvases {
-  const kinds: AbilityKind[] = ["normal", "fire", "lightning", "physical"];
   const out = {} as AbilityCanvases;
-  for (const kind of kinds) {
+  for (const kind of ABILITY_KINDS) {
     const canvas = document.createElement("canvas");
     canvas.width = FACE_SIZE;
     canvas.height = FACE_SIZE;
@@ -18,10 +17,7 @@ export function bakeAbilityCanvases(): AbilityCanvases {
 }
 
 export function abilityUrls(canvases: AbilityCanvases): Record<AbilityKind, string> {
-  return {
-    normal: canvases.normal.toDataURL(),
-    fire: canvases.fire.toDataURL(),
-    lightning: canvases.lightning.toDataURL(),
-    physical: canvases.physical.toDataURL(),
-  };
+  const out = {} as Record<AbilityKind, string>;
+  for (const kind of ABILITY_KINDS) out[kind] = canvases[kind].toDataURL();
+  return out;
 }

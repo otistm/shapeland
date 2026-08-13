@@ -18,6 +18,7 @@ import type { ProofLine } from "./orientation-group";
 import {
   DOOR,
   GLYPH,
+  ICE_GLYPH,
   NPC,
   SHRINE,
   SOCKET,
@@ -233,6 +234,12 @@ export function proveWorld(): ProofLine[] {
   const fromSocket = bfs(world, SOCKET.x, SOCKET.z, 0, true, true);
   const glyphD = minAt(fromSocket, GLYPH.x, GLYPH.z);
   log(lines, glyphD === 5, `socket → glyph with door open in ${glyphD} moves`);
+  log(
+    lines,
+    regionOf(ICE_GLYPH.x, ICE_GLYPH.z, 1) === REGION_CHAMBER &&
+      !(ICE_GLYPH.x === GLYPH.x && ICE_GLYPH.z === GLYPH.z),
+    "ice glyph is inside the chamber and off the lightning cell",
+  );
   world.doorOpen = 0;
 
   let arrive = INF;

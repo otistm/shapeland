@@ -26,11 +26,14 @@ import {
   MODE_FALL,
   MODE_IDLE,
   MODE_ROLL,
+  MODE_SLIDE,
   MODE_TUCK,
   ROLL_TICKS,
+  SLIDE_CELL_TICKS,
   TUCK_TICKS,
 } from "./constants";
 import { dirFromMask } from "./input";
+import { iceHas, slideEnd } from "./ice";
 import { rollTowardDir } from "./orientation";
 import type { Terrain } from "./terrain";
 
@@ -65,6 +68,8 @@ export interface Mover {
   spawnOri: number;
   terrain: Terrain;
   occupied(x: number, z: number): boolean;
+  ice: Uint32Array;
+  iceCount: number;
 }
 
 export function canRollTo(terrain: Terrain, x: number, z: number, tx: number, tz: number): boolean {
@@ -188,7 +193,7 @@ function startTuck(w: Mover, dir: number): void {
 
 function tryJump(w: Mover): void {
   if (w.mode !== MODE_IDLE) {
-    if (w.mode === MODE_ROLL || w.mode === MODE_AIR) w.jumpBuf = JUMP_BUFFER_TICKS;
+    if (w.mode === MODE_ROLL || w.mode === MODE_AIR || w.mode === MODE_SLIDE) w.jumpBuf = JUMP_BUFFER_TICKS;
     return;
   }
   beginMove(w, MODE_CROUCH, DIR_NONE, CROUCH_TICKS, w.x, w.h, w.z, w.orientation);
@@ -263,8 +268,32 @@ function handleGroundInput(w: Mover, mask: number): void {
 
 function landRoll(w: Mover, mask: number): void {
   const down = w.destH < w.startH ? FLAG_LAND_DOWN : 0;
+  const slideDir = w.dir;
   snapIdle(w, w.destX, w.destH, w.destZ, w.destOri);
   w.flags |= FLAG_LAND | down;
+  if (tryStartSlide(w, slideDir)) return;
+  grounded(w, mask);
+}
+
+function tryStartSlide(w: Mover, dir: number): boolean {
+  if (dir === DIR_NONE) return false;
+  if (!iceHas(w.ice, w.iceCount, w.x, w.z)) return false;
+  const end = slideEnd(
+    w.x,
+    w.z,
+    dir,
+    (fx, fz, tx, tz) => canRollTo(w.terrain, fx, fz, tx, tz) && !w.occupied(tx, tz),
+    (tx, tz) => iceHas(w.ice, w.iceCount, tx, tz),
+    (tx, tz) => w.terrain.height(tx, tz),
+  );
+  if (!end) return false;
+  beginMove(w, MODE_SLIDE, dir, end.cells * SLIDE_CELL_TICKS, end.x, end.h, end.z, w.orientation);
+  return true;
+}
+
+function landSlide(w: Mover, mask: number): void {
+  snapIdle(w, w.destX, w.destH, w.destZ, w.destOri);
+  w.flags |= FLAG_LAND;
   grounded(w, mask);
 }
 
@@ -321,6 +350,9 @@ export function stepMovement(w: Mover, mask: number): void {
   } else if (w.mode === MODE_ROLL) {
     w.phase += 1;
     if (w.phase >= w.duration) landRoll(w, mask);
+  } else if (w.mode === MODE_SLIDE) {
+    w.phase += 1;
+    if (w.phase >= w.duration) landSlide(w, mask);
   } else if (w.mode === MODE_FALL) stepFall(w);
   else if (w.mode === MODE_CROUCH) {
     w.phase += 1;

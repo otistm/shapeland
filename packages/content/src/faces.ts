@@ -1,6 +1,6 @@
-import { CUBE_BODY, FIRE, GLYPH_HALO, LIGHTNING, PHYSICAL } from "@shapeland/sim";
+import { CUBE_BODY, FIRE, GLYPH_HALO, ICE, LIGHTNING, PHYSICAL } from "@shapeland/sim";
 
-export const ABILITY_KINDS = ["fire", "lightning", "physical", "normal"] as const;
+export const ABILITY_KINDS = ["fire", "lightning", "physical", "ice", "normal"] as const;
 export type AbilityKind = (typeof ABILITY_KINDS)[number];
 
 export const FACE_SIZE = 256;
@@ -102,6 +102,26 @@ export function drawAbilityFace(g: FaceBrush, kind: AbilityKind): void {
     g.fillStyle = "#eef4fc";
     g.beginPath();
     g.arc(128, 128, 17, 0, Math.PI * 2);
+    g.fill();
+    return;
+  }
+
+  if (kind === "ice") {
+    halo(() => {
+      g.beginPath();
+      g.moveTo(128, 48);
+      g.lineTo(208, 128);
+      g.lineTo(128, 208);
+      g.lineTo(48, 128);
+      g.closePath();
+    }, ICE);
+    g.fillStyle = "#7ee7f0";
+    g.beginPath();
+    g.moveTo(128, 88);
+    g.lineTo(168, 128);
+    g.lineTo(128, 168);
+    g.lineTo(88, 128);
+    g.closePath();
     g.fill();
     return;
   }

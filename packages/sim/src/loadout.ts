@@ -6,10 +6,14 @@ export const ABILITY_NORMAL = 0;
 export const ABILITY_FIRE = 1;
 export const ABILITY_LIGHTNING = 2;
 export const ABILITY_PHYSICAL = 3;
-export const ABILITY_MAX = 3;
+export const ABILITY_ICE = 4;
+export const ABILITY_MAX = 4;
 
 export const SANDBOX_FINDS =
-  (1 << ABILITY_FIRE) | (1 << ABILITY_LIGHTNING) | (1 << ABILITY_PHYSICAL);
+  (1 << ABILITY_FIRE) |
+  (1 << ABILITY_LIGHTNING) |
+  (1 << ABILITY_PHYSICAL) |
+  (1 << ABILITY_ICE);
 
 export function abilityFound(found: number, id: number): boolean {
   if (id === ABILITY_NORMAL) return true;

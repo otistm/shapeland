@@ -2,6 +2,8 @@ export * from "./constants";
 export * from "./fire";
 export * from "./fire-ramp";
 export * from "./hash";
+export * from "./ice";
+export * from "./ice-proof";
 export * from "./input";
 export * from "./lightning";
 export * from "./loadout";

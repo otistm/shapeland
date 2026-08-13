@@ -6,6 +6,7 @@ import {
   FLAG_HURT,
   FLAG_KILL,
   GLYPH,
+  ICE_GLYPH,
   NPC,
   SHAKE_BLAST,
   SHAKE_DOOR,
@@ -169,13 +170,17 @@ export function createWorldView(
 
   const shrineH = terrain.height(SHRINE.x, SHRINE.z);
   const glyphH = terrain.height(GLYPH.x, GLYPH.z);
+  const iceH = terrain.height(ICE_GLYPH.x, ICE_GLYPH.z);
   const socketH = terrain.height(SOCKET.x, SOCKET.z);
   const npcH = terrain.height(NPC.x, NPC.z);
   const shrine = makePickup(SHRINE.x, SHRINE.z, faceTex.fire, shrineH);
   const glyph = makePickup(GLYPH.x, GLYPH.z, faceTex.lightning, glyphH);
-  scene.add(shrine.decal, shrine.icon, glyph.decal, glyph.icon);
+  const ice = makePickup(ICE_GLYPH.x, ICE_GLYPH.z, faceTex.ice, iceH);
+  scene.add(shrine.decal, shrine.icon, glyph.decal, glyph.icon, ice.decal, ice.icon);
   glyph.decal.visible = false;
   glyph.icon.visible = false;
+  ice.decal.visible = false;
+  ice.icon.visible = false;
 
   const sock = new Mesh(
     new PlaneGeometry(0.92, 0.92),
@@ -268,10 +273,14 @@ export function createWorldView(
       shrine.icon.visible = w.shrineTaken === 0;
       glyph.decal.visible = w.doorOpen !== 0;
       glyph.icon.visible = w.doorOpen !== 0 && w.glyphTaken === 0;
+      ice.decal.visible = w.doorOpen !== 0;
+      ice.icon.visible = w.doorOpen !== 0 && w.iceTaken === 0;
       shrine.icon.position.y = shrineH + 1.05 + 0.1 * Math.sin(clock * 2.2);
       shrine.icon.rotation.y = clock * 0.8;
       glyph.icon.position.y = glyphH + 1.05 + 0.1 * Math.sin(clock * 2.2);
       glyph.icon.rotation.y = clock * 0.8;
+      ice.icon.position.y = iceH + 1.05 + 0.1 * Math.sin(clock * 2.2);
+      ice.icon.rotation.y = clock * 0.8;
 
       if (w.doorOpen !== 0 && doorSlab.position.y > -1.8) {
         doorSlab.position.y -= dt * 1.6;

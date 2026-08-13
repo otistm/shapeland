@@ -1,4 +1,4 @@
-import { MODE_ROLL, ROLL_TICKS, createSnapshot } from "@shapeland/sim";
+import { MODE_ROLL, MODE_SLIDE, ROLL_TICKS, createSnapshot } from "@shapeland/sim";
 import { describe, expect, it } from "vitest";
 import { cameraTarget, rollEase, visualPose } from "./pose";
 
@@ -36,5 +36,27 @@ describe("camera feed vs body ease", () => {
     const pose = visualPose(s);
     expect(cam.restY).toBe(2);
     expect(pose.y).not.toBeCloseTo(2.5, 2);
+  });
+
+  it("slides with linear translation and no extra spin", () => {
+    const s = createSnapshot();
+    s.move.mode = MODE_SLIDE;
+    s.move.dir = 1;
+    s.move.phase = 5;
+    s.move.duration = 10;
+    s.move.startX = 1;
+    s.move.destX = 3;
+    s.move.startOri = 0;
+    s.move.destOri = 0;
+    const cam = cameraTarget(s);
+    const pose = visualPose(s);
+    expect(cam.followX).toBeCloseTo(2, 10);
+    expect(pose.x).toBeCloseTo(2, 10);
+    expect(cam.followX).toBeCloseTo(pose.x, 10);
+    expect(cam.aimX).toBe(1);
+    expect(pose.quat.x).toBeCloseTo(0, 6);
+    expect(pose.quat.y).toBeCloseTo(0, 6);
+    expect(pose.quat.z).toBeCloseTo(0, 6);
+    expect(pose.quat.w).toBeCloseTo(1, 6);
   });
 });

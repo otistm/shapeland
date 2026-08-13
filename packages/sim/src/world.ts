@@ -1,4 +1,4 @@
-import { INTEGRITY, SCORCH_MAX, TURRET_COUNT } from "./constants";
+import { ICE_MAX, INTEGRITY, SCORCH_MAX, TURRET_COUNT } from "./constants";
 import { FireField } from "./fire";
 import { fnv1aF64, fnv1aI32, fnv1aStart, fnv1aU8, fnv1aU32 } from "./hash";
 import { FACE_COUNT, facesLegal, grantAbility } from "./loadout";
@@ -66,12 +66,17 @@ export class World {
   readonly scorchH = new Int8Array(SCORCH_MAX);
   scorchCount = 0;
   scorchHash = 0;
+  readonly ice = new Uint32Array(ICE_MAX);
+  readonly iceH = new Int8Array(ICE_MAX);
+  iceCount = 0;
+  iceHash = 0;
 
   sliceOn = 0;
   stage = 0;
   doorOpen = 1;
   shrineTaken = 0;
   glyphTaken = 0;
+  iceTaken = 0;
   iframes = 0;
   npcRange = 0;
   banner = 0;
@@ -153,9 +158,15 @@ export class World {
     v.groundH = this.h;
     v.scorchCount = this.scorchCount;
     v.scorchHash = this.scorchHash;
+    v.iceCount = this.iceCount;
+    v.iceHash = this.iceHash;
     for (let i = 0; i < this.scorchCount; i++) {
       v.scorch[i] = this.scorch[i] ?? 0;
       v.scorchH[i] = this.scorchH[i] ?? 0;
+    }
+    for (let i = 0; i < this.iceCount; i++) {
+      v.ice[i] = this.ice[i] ?? 0;
+      v.iceH[i] = this.iceH[i] ?? 0;
     }
     v.fireCount = copyFireLive(
       this.fire,
@@ -174,6 +185,7 @@ export class World {
     w.doorOpen = this.doorOpen;
     w.shrineTaken = this.shrineTaken;
     w.glyphTaken = this.glyphTaken;
+    w.iceTaken = this.iceTaken;
     w.iframes = this.iframes;
     w.npcRange = this.npcRange;
     w.banner = this.banner;
@@ -280,6 +292,7 @@ function hashWorld(contentHash: number, tick: number, out: SimSnapshot, fireHash
   h = fnv1aU32(h, out.vfx.pulse);
   h = fnv1aU32(h, out.vfx.boltSeed);
   h = fnv1aU32(h, out.vfx.scorchHash);
+  h = fnv1aU32(h, out.vfx.iceHash);
   h = fnv1aU32(h, out.vfx.fireCount);
   h = fnv1aU32(h, fireHash);
   h = fnv1aU32(h, w.sliceOn);
@@ -287,6 +300,7 @@ function hashWorld(contentHash: number, tick: number, out: SimSnapshot, fireHash
   h = fnv1aU32(h, w.doorOpen);
   h = fnv1aU32(h, w.shrineTaken);
   h = fnv1aU32(h, w.glyphTaken);
+  h = fnv1aU32(h, w.iceTaken);
   h = fnv1aU32(h, w.iframes);
   h = fnv1aU32(h, w.npcRange);
   h = fnv1aU32(h, w.banner);

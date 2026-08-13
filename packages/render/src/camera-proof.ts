@@ -12,6 +12,7 @@ import {
   SHAKE_FIRE,
   SHAKE_FLOOR,
   SHAKE_HURT,
+  SHAKE_ICE,
   SHAKE_MIN,
   SHAKE_PHYS,
   SHAKE_SENTRY,
@@ -73,6 +74,7 @@ export function proveCamera(): ProofLine[] {
     SHAKE_DOOR,
     SHAKE_SENTRY,
     SHAKE_BLAST,
+    SHAKE_ICE,
   ];
   log(
     lines,

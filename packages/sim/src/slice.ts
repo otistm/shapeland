@@ -3,6 +3,7 @@ import {
   BANNER_CRACK,
   BANNER_DOOR,
   BANNER_GLYPH,
+  BANNER_ICE,
   BANNER_NONE,
   BANNER_SHRINE,
   FLAG_AIR_LAND,
@@ -34,7 +35,7 @@ import {
   TURRET_STATE_AIM,
   TURRET_STATE_COOL,
 } from "./constants";
-import { ABILITY_FIRE, ABILITY_LIGHTNING, ABILITY_PHYSICAL, grantAbility } from "./loadout";
+import { ABILITY_FIRE, ABILITY_ICE, ABILITY_LIGHTNING, ABILITY_PHYSICAL, grantAbility } from "./loadout";
 import { DOWN, UP } from "./orientation";
 import { type Terrain, terraceHill } from "./terrain";
 
@@ -42,6 +43,7 @@ export const SHRINE = { x: 0, z: -7 } as const;
 export const SOCKET = { x: 0, z: -20 } as const;
 export const DOOR = { x: 0, z: -22 } as const;
 export const GLYPH = { x: 0, z: -25 } as const;
+export const ICE_GLYPH = { x: 2, z: -26 } as const;
 export const NPC = { x: 3, z: -5 } as const;
 export const START = { x: 0, z: 0 } as const;
 
@@ -87,6 +89,7 @@ export interface SliceHost {
   doorOpen: number;
   shrineTaken: number;
   glyphTaken: number;
+  iceTaken: number;
   iframes: number;
   npcRange: number;
   banner: number;
@@ -126,6 +129,7 @@ export function bootSlice(w: SliceHost): void {
   w.stage = STAGE_SEEK;
   w.shrineTaken = 0;
   w.glyphTaken = 0;
+  w.iceTaken = 0;
   w.turretAlive = (1 << TURRET_COUNT) - 1;
   for (let i = 0; i < TURRET_COUNT; i++) {
     const site = TURRET_SITES[i];
@@ -315,6 +319,11 @@ export function stepSlice(w: SliceHost): void {
       stampDown(w, ABILITY_LIGHTNING);
       w.stage = STAGE_DONE;
       w.banner = BANNER_GLYPH;
+    }
+    if (w.doorOpen !== 0 && w.iceTaken === 0 && w.x === ICE_GLYPH.x && w.z === ICE_GLYPH.z) {
+      w.iceTaken = 1;
+      stampDown(w, ABILITY_ICE);
+      w.banner = BANNER_ICE;
     }
     if (w.doorOpen === 0 && w.x === SOCKET.x && w.z === SOCKET.z) {
       if ((w.faces[DOWN(w.orientation)] ?? 0) === ABILITY_FIRE) openDoor(w);
