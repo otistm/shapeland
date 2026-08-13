@@ -32,6 +32,11 @@ export const CAM_FOLLOW = 5.2;
 export const CAM_CLIMB = 4.5;
 export const CAM_LOOKAHEAD = 0.85;
 export const CAM_LOOKAHEAD_RATE = 4;
+export const CAM_SHAKE_DECAY = 7.5;
+export const CAM_KICK_STIFF = 90;
+export const CAM_KICK_DAMP = 12;
+export const CAM_KICK_PHYS = 2.8;
+export const SHAKE_MIN = 0.05;
 export const FOG_NEAR = 42;
 export const FOG_FAR = 110;
 

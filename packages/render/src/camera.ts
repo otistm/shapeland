@@ -1,4 +1,16 @@
-import { CAM_AIM, CAM_CLIMB, CAM_FOLLOW, CAM_OFFSET, SHAKE_FLOOR } from "@shapeland/sim";
+import {
+  CAM_AIM,
+  CAM_CLIMB,
+  CAM_FOLLOW,
+  CAM_KICK_DAMP,
+  CAM_KICK_STIFF,
+  CAM_LOOKAHEAD,
+  CAM_LOOKAHEAD_RATE,
+  CAM_OFFSET,
+  CAM_SHAKE_DECAY,
+  SHAKE_FLOOR,
+  SHAKE_MIN,
+} from "@shapeland/sim";
 
 export interface Vec3 {
   x: number;
@@ -9,6 +21,10 @@ export interface Vec3 {
 export interface CameraRig {
   position: Vec3;
   target: Vec3;
+  lookAheadX: number;
+  lookAheadZ: number;
+  kickY: number;
+  kickV: number;
   shake: number;
 }
 
@@ -18,6 +34,9 @@ export interface CameraInput {
   followZ: number;
   /** Resting ground height, not the cube's arc or jump. */
   restY: number;
+  /** Cardinal aim of the current roll/leap, or 0. */
+  aimX?: number;
+  aimZ?: number;
   dt: number;
 }
 
@@ -45,6 +64,10 @@ export function createCameraRig(): CameraRig {
   return {
     position: { x: CAM_OFFSET[0], y: CAM_OFFSET[1], z: CAM_OFFSET[2] },
     target: { x: 0, y: 0, z: 0 },
+    lookAheadX: 0,
+    lookAheadZ: 0,
+    kickY: 0,
+    kickV: 0,
     shake: 0,
   };
 }
@@ -54,10 +77,16 @@ export function createCameraRig(): CameraRig {
  * Impact shake is a separate entry point labelled `// impact:`.
  */
 export function stepCamera(rig: CameraRig, input: CameraInput, ready: { current: boolean }): void {
+  const aimX = input.aimX ?? 0;
+  const aimZ = input.aimZ ?? 0;
+  const lookK = expSmooth(CAM_LOOKAHEAD_RATE, input.dt);
+  rig.lookAheadX += (aimX * CAM_LOOKAHEAD - rig.lookAheadX) * lookK;
+  rig.lookAheadZ += (aimZ * CAM_LOOKAHEAD - rig.lookAheadZ) * lookK;
+
   const groundY = rig.target.y + (input.restY - rig.target.y) * expSmooth(CAM_CLIMB, input.dt);
-  rig.target.x = input.followX;
+  rig.target.x = input.followX + rig.lookAheadX;
   rig.target.y = groundY;
-  rig.target.z = input.followZ;
+  rig.target.z = input.followZ + rig.lookAheadZ;
 
   const wantX = rig.target.x + CAM_OFFSET[0];
   const wantY = rig.target.y + CAM_OFFSET[1];
@@ -76,8 +105,11 @@ export function stepCamera(rig: CameraRig, input: CameraInput, ready: { current:
   rig.position.y += (wantY - rig.position.y) * k;
   rig.position.z += (wantZ - rig.position.z) * k;
 
+  rig.kickV += (-CAM_KICK_STIFF * rig.kickY - CAM_KICK_DAMP * rig.kickV) * input.dt;
+  rig.kickY += rig.kickV * input.dt;
+
   if (rig.shake > 0) {
-    rig.shake *= Math.exp(-7.5 * input.dt);
+    rig.shake *= Math.exp(-CAM_SHAKE_DECAY * input.dt);
     if (rig.shake < SHAKE_FLOOR) rig.shake = 0;
   }
 }
@@ -88,6 +120,17 @@ export function lookAtY(rig: CameraRig): number {
 
 /** impact: only called from hit feedback. Traversal must never call this. */
 export function impactShake(rig: CameraRig, amount: number): void {
-  if (amount < 0.05) return;
+  if (amount < SHAKE_MIN) return;
   rig.shake = amount;
+}
+
+/** One kick-spring exciter: a physical landing drops the camera, then it recovers. */
+export function impactKick(rig: CameraRig, impulse: number): void {
+  rig.kickV -= impulse;
+}
+
+export function clearCameraFeel(rig: CameraRig): void {
+  rig.shake = 0;
+  rig.kickY = 0;
+  rig.kickV = 0;
 }

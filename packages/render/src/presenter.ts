@@ -39,7 +39,7 @@ import {
   Scene,
   WebGPURenderer,
 } from "three/webgpu";
-import { createCameraRig, lookAtY, stepCamera } from "./camera";
+import { clearCameraFeel, createCameraRig, lookAtY, stepCamera } from "./camera";
 import { bakeFaceTextures } from "./faces";
 import { toNonIndexedFacets } from "./geometry";
 import { type InterpolatedFrame, interpolate } from "./interpolate";
@@ -184,6 +184,8 @@ export async function createGamePresenter(
           followX: frame.camera.followX,
           followZ: frame.camera.followZ,
           restY: frame.camera.restY,
+          aimX: frame.camera.aimX,
+          aimZ: frame.camera.aimZ,
           dt,
         },
         camReady,
@@ -239,7 +241,9 @@ export async function createGamePresenter(
       worldClock += dt;
       worldView?.present(cur, dt, worldClock, rig);
 
-      camera.position.set(rig.position.x, rig.position.y, rig.position.z);
+      const reduced = reducedMotion();
+      if (reduced) clearCameraFeel(rig);
+      camera.position.set(rig.position.x, rig.position.y + rig.kickY, rig.position.z);
       const shake = rig.shake;
       if (shake > 0) {
         camera.position.x += (Math.random() - 0.5) * shake;

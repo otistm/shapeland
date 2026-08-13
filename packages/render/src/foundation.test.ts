@@ -12,6 +12,7 @@ import {
   lookAtY,
   stepCamera,
 } from "./camera";
+import { proveCamera } from "./camera-proof";
 import { SIM_FACE_FOR_GROUP, orientationQuaternion, upGroup } from "./orientation-map";
 import { contrastRatio, hexToRgb, scaledHex } from "./palette";
 import { sampleToonRamp, toonRampBytes } from "./toon-ramp";
@@ -63,6 +64,13 @@ describe("qa-cam", () => {
     expect(rig.shake).toBe(0);
     impactShake(rig, 0.12);
     expect(rig.shake).toBe(0.12);
+  });
+
+  it("proves shake policy, zero bob, and linear-vs-eased ripple", () => {
+    const failed = proveCamera()
+      .filter((line) => !line.ok)
+      .map((line) => line.message);
+    expect(failed).toEqual([]);
   });
 });
 

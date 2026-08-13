@@ -1,4 +1,5 @@
 export * from "./camera";
+export * from "./camera-proof";
 export * from "./fire-mat";
 export * from "./interpolate";
 export * from "./orientation-map";

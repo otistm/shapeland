@@ -26,6 +26,8 @@ export interface CameraTarget {
   followX: number;
   followZ: number;
   restY: number;
+  aimX: number;
+  aimZ: number;
 }
 
 export function rollEase(t: number): number {
@@ -72,12 +74,16 @@ function progress(phase: number, duration: number): number {
 /** Linear lattice progress and resting ground — never the eased cube. */
 export function cameraTarget(s: SimSnapshot): CameraTarget {
   const m = s.move;
+  const dx = DIR_DX[m.dir] ?? 0;
+  const dz = DIR_DZ[m.dir] ?? 0;
   if (m.mode === MODE_ROLL) {
     const t = progress(m.phase, m.duration);
     return {
       followX: m.startX + (m.destX - m.startX) * t,
       followZ: m.startZ + (m.destZ - m.startZ) * t,
       restY: m.destY,
+      aimX: dx,
+      aimZ: dz,
     };
   }
   if (m.mode === MODE_AIR && m.leap === 1) {
@@ -86,12 +92,14 @@ export function cameraTarget(s: SimSnapshot): CameraTarget {
       followX: m.startX + (m.destX - m.startX) * t,
       followZ: m.startZ + (m.destZ - m.startZ) * t,
       restY: m.destY,
+      aimX: dx,
+      aimZ: dz,
     };
   }
   if (m.mode === MODE_AIR || m.mode === MODE_CROUCH || m.mode === MODE_FALL) {
-    return { followX: m.startX, followZ: m.startZ, restY: m.destY };
+    return { followX: m.startX, followZ: m.startZ, restY: m.destY, aimX: 0, aimZ: 0 };
   }
-  return { followX: s.player.x, followZ: s.player.z, restY: s.player.y };
+  return { followX: s.player.x, followZ: s.player.z, restY: s.player.y, aimX: 0, aimZ: 0 };
 }
 
 function restPose(x: number, h: number, z: number, ori: number): Pose {

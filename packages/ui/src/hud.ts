@@ -474,7 +474,7 @@ export function mountHud(host: HTMLElement, opts: HudOptions): HudHandle {
       pivotBtn.classList.toggle("armed", snapshot.move.pivotArmed !== 0);
       if (dialogOpen && snapshot.world.npcRange === 0) setDialog(false);
       dbg.textContent = [
-        "SHAPELAND  ·  phase 7",
+        "SHAPELAND  ·  phase 8",
         backend ? `backend       ${backend}` : "",
         `tick           ${snapshot.tick}`,
         `alpha          ${alpha.toFixed(3)}`,

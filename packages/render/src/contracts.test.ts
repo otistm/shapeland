@@ -50,4 +50,14 @@ describe("render contracts", () => {
     }
     expect(hits).toEqual([]);
   });
+
+  it("never lets traversal write shake", () => {
+    const src = readFileSync(join(RENDER_SRC, "camera.ts"), "utf8");
+    const step = src.slice(
+      src.indexOf("export function stepCamera"),
+      src.indexOf("export function lookAtY"),
+    );
+    expect(step.includes("rig.shake = amount")).toBe(false);
+    expect(step.includes("impactShake")).toBe(false);
+  });
 });

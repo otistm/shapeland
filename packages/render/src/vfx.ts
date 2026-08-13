@@ -1,4 +1,5 @@
 import {
+  CAM_KICK_PHYS,
   FIRE_MAX,
   SHAKE_BOLT,
   SHAKE_FIRE,
@@ -24,7 +25,7 @@ import {
   PointLight,
   type Scene,
 } from "three/webgpu";
-import { type CameraRig, impactShake } from "./camera";
+import { type CameraRig, impactKick, impactShake } from "./camera";
 import { fireInstanceAttrs, makeFireMaterial, makeVfxUnlit } from "./fire-mat";
 
 const LIGHT_POOL = 4;
@@ -271,6 +272,7 @@ export function createVfx(scene: Scene, rig: CameraRig): VfxSystem {
           strike(v.boltSeed, cube.x, cube.z, v.groundH + 0.05);
         } else if (v.pulse === VFX_PULSE_PHYS) {
           impactShake(rig, SHAKE_PHYS); // impact: physical
+          impactKick(rig, CAM_KICK_PHYS);
           craterT = 1.4;
           craterMesh.position.set(cube.x, v.groundH + 0.025, cube.z);
           craterMesh.visible = true;

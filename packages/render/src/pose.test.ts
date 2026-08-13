@@ -20,6 +20,8 @@ describe("camera feed vs body ease", () => {
     expect(pose.x).toBeCloseTo(rollEase(t), 10);
     expect(cam.followX).not.toBeCloseTo(pose.x, 3);
     expect(cam.restY).toBe(0);
+    expect(cam.aimX).toBe(1);
+    expect(cam.aimZ).toBe(0);
   });
 
   it("feeds resting destination height, never the roll lift", () => {

@@ -44,6 +44,8 @@ export function interpolate(prev: SimSnapshot, cur: SimSnapshot, alpha: number):
       followX: ca.followX + (cb.followX - ca.followX) * t,
       followZ: ca.followZ + (cb.followZ - ca.followZ) * t,
       restY: ca.restY + (cb.restY - ca.restY) * t,
+      aimX: ca.aimX + (cb.aimX - ca.aimX) * t,
+      aimZ: ca.aimZ + (cb.aimZ - ca.aimZ) * t,
     },
   };
 }
