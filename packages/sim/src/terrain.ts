@@ -4,6 +4,13 @@ export function packXZ(x: number, z: number): number {
   return ((x + 32768) & 0xffff) | (((z + 32768) & 0xffff) << 16);
 }
 
+export function unpackXZ(key: number): { x: number; z: number } {
+  return {
+    x: (key & 0xffff) - 32768,
+    z: ((key >>> 16) & 0xffff) - 32768,
+  };
+}
+
 export class Terrain {
   private readonly heights = new Map<number, number>();
   private readonly walls = new Set<number>();

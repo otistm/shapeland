@@ -1,4 +1,5 @@
-import { INTEGRITY } from "./constants";
+import { INTEGRITY, SCORCH_MAX } from "./constants";
+import { FireField } from "./fire";
 import { fnv1aF64, fnv1aI32, fnv1aStart, fnv1aU8, fnv1aU32 } from "./hash";
 import { FACE_COUNT, facesLegal, grantAbility } from "./loadout";
 import { stepMovement } from "./movement";
@@ -6,6 +7,7 @@ import { assertOrientationTables } from "./orientation";
 import { type RngBank, copyRngBank, createRngBank, sfc32Next } from "./rng";
 import { type SimSnapshot, createSnapshot } from "./snapshot";
 import { Terrain } from "./terrain";
+import { copyFireLive, hashFire, stepVfx } from "./vfx";
 
 export interface WorldConfig {
   seed: number;
@@ -53,6 +55,15 @@ export class World {
   spawnOri = 0;
   readonly faces = new Uint8Array(FACE_COUNT);
   found = 0;
+  burnT = 0;
+  burnDur = 0;
+  vfxPulse = 0;
+  boltSeed = 0;
+  readonly fire = new FireField();
+  readonly scorch = new Uint32Array(SCORCH_MAX);
+  readonly scorchH = new Int8Array(SCORCH_MAX);
+  scorchCount = 0;
+  scorchHash = 0;
 
   constructor(config: WorldConfig) {
     assertOrientationTables();
@@ -66,6 +77,7 @@ export class World {
     this.tick += 1;
     this.buttonMask = mask | 0;
     stepMovement(this, mask | 0);
+    stepVfx(this);
     sfc32Next(this.rng.world);
   }
 
@@ -103,9 +115,32 @@ export class World {
     out.move.flags = this.flags;
     out.move.vy = this.vy;
     out.move.airY = this.airY;
+    const v = out.vfx;
+    v.burnT = this.burnT;
+    v.burnDur = this.burnDur;
+    v.pulse = this.vfxPulse;
+    v.boltSeed = this.boltSeed;
+    v.groundH = this.h;
+    v.scorchCount = this.scorchCount;
+    v.scorchHash = this.scorchHash;
+    for (let i = 0; i < this.scorchCount; i++) {
+      v.scorch[i] = this.scorch[i] ?? 0;
+      v.scorchH[i] = this.scorchH[i] ?? 0;
+    }
+    v.fireCount = copyFireLive(
+      this.fire,
+      v.fireX,
+      v.fireY,
+      v.fireZ,
+      v.fireT,
+      v.fireSize,
+      v.fireStretch,
+      v.fireA,
+      v.fireSeed,
+    );
     out.hashes.player = hashPlayer(out);
     out.hashes.rng = hashRng(this.rng);
-    out.hashes.world = hashWorld(this.contentHash, this.tick);
+    out.hashes.world = hashWorld(this.contentHash, this.tick, out, hashFire(this.fire));
     out.hashes.input = fnv1aU32(fnv1aStart(), this.buttonMask);
     out.hashes.total = combineLayers(out.hashes);
   }
@@ -186,10 +221,17 @@ function hashRng(rng: RngBank): number {
   return fnv1aU32(h, rng.combat.d);
 }
 
-function hashWorld(contentHash: number, tick: number): number {
+function hashWorld(contentHash: number, tick: number, out: SimSnapshot, fireHash: number): number {
   let h = fnv1aStart();
   h = fnv1aU32(h, contentHash);
-  return fnv1aU32(h, tick);
+  h = fnv1aU32(h, tick);
+  h = fnv1aU32(h, out.vfx.burnT);
+  h = fnv1aU32(h, out.vfx.burnDur);
+  h = fnv1aU32(h, out.vfx.pulse);
+  h = fnv1aU32(h, out.vfx.boltSeed);
+  h = fnv1aU32(h, out.vfx.scorchHash);
+  h = fnv1aU32(h, out.vfx.fireCount);
+  return fnv1aU32(h, fireHash);
 }
 
 function combineLayers(h: {

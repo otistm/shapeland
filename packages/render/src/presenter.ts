@@ -45,6 +45,7 @@ import { type InterpolatedFrame, interpolate } from "./interpolate";
 import { SIM_FACE_FOR_GROUP } from "./orientation-map";
 import { createSquash, stepSquash } from "./squash";
 import { makeToon } from "./toon";
+import { createVfx } from "./vfx";
 
 export type RenderBackend = "webgpu" | "webgl2";
 
@@ -152,6 +153,9 @@ export async function createGamePresenter(
   scene.add(cubeRig);
   const squash = createSquash();
   let paintedFaces = -1;
+  const vfx = createVfx(scene, rig);
+  const reducedMotion = (): boolean =>
+    typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   const resize = (width: number, height: number) => {
     const w = Math.max(1, width);
@@ -176,8 +180,6 @@ export async function createGamePresenter(
         },
         camReady,
       );
-      camera.position.set(rig.position.x, rig.position.y, rig.position.z);
-      camera.lookAt(rig.target.x, lookAtY(rig), rig.target.z);
 
       const { sy, sxz } = stepSquash(
         squash,
@@ -220,11 +222,28 @@ export async function createGamePresenter(
       ground.position.x = Math.round(frame.camera.followX / GRID_PERIOD) * GRID_PERIOD;
       ground.position.z = Math.round(frame.camera.followZ / GRID_PERIOD) * GRID_PERIOD;
 
+      vfx.present(
+        cur,
+        dt,
+        { x: cubeRig.position.x, y: cubeRig.position.y, z: cubeRig.position.z },
+        reducedMotion(),
+      );
+
+      camera.position.set(rig.position.x, rig.position.y, rig.position.z);
+      const shake = rig.shake;
+      if (shake > 0) {
+        camera.position.x += (Math.random() - 0.5) * shake;
+        camera.position.y += (Math.random() - 0.5) * shake;
+        camera.position.z += (Math.random() - 0.5) * shake;
+      }
+      camera.lookAt(rig.target.x, lookAtY(rig), rig.target.z);
+
       renderer.render(scene, camera);
       return frame;
     },
     resize,
     dispose() {
+      vfx.dispose();
       renderer.dispose();
     },
   };

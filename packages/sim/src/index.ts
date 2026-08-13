@@ -1,6 +1,9 @@
 export * from "./constants";
+export * from "./fire";
+export * from "./fire-ramp";
 export * from "./hash";
 export * from "./input";
+export * from "./lightning";
 export * from "./loadout";
 export * from "./loop";
 export * from "./move-proof";
@@ -11,4 +14,5 @@ export * from "./replay";
 export * from "./rng";
 export * from "./snapshot";
 export * from "./terrain";
+export * from "./vfx";
 export * from "./world";

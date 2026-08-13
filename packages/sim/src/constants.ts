@@ -105,3 +105,54 @@ export const FLAG_LAND = 1 << 1;
 export const FLAG_LAND_DOWN = 1 << 2;
 export const FLAG_LAUNCH = 1 << 3;
 export const FLAG_PIVOT = 1 << 4;
+/** Jump/leap landing only. Ability VFX arms from the up face on this flag. */
+export const FLAG_AIR_LAND = 1 << 5;
+
+export const FIRE_MAX = 340;
+export const FIRE_BUOY = 10;
+export const FIRE_TAU = 0.36;
+export const FIRE_DRAG = 1.2;
+export const FIRE_ENTRAIN = 0.16;
+export const FIRE_NECK_AMT = 0.45;
+export const FIRE_NECK_H = 0.22;
+export const FIRE_NECK_W = 0.16;
+export const FIRE_RAD_K = 6;
+export const FIRE_SWIRL0 = 2.2;
+export const FIRE_SWIRL_TAU = 0.5;
+export const FIRE_V0 = 0.6;
+export const FIRE_R0 = 0.3;
+export const FIRE_MAX_AGE = 1.35;
+export const FIRE_BASE_RATE = 64;
+export const FIRE_PUFF_N = 18;
+/** Puff Hz at D = 1: 1.5 / √D. Authored so sim never calls sqrt for the default source. */
+export const FIRE_PUFF_HZ = 1.5;
+export const FIRE_STRETCH_K = 0.22;
+export const FIRE_STRETCH_CAP = 1.15;
+
+/** 3.4s at 120Hz. Re-ignite extends remaining duration up to the cap. */
+export const BURN_BASE_TICKS = 408;
+export const BURN_CAP_TICKS = 780;
+export const BURN_IN_TICKS = 17;
+export const BURN_OUT = 0.3;
+
+export const BOLT_TOP = 11;
+export const BOLT_LEVELS = 5;
+export const BOLT_DISP = 1.9;
+export const BOLT_POINTS = 33;
+export const BOLT_BRANCH_LEVELS = 4;
+export const BOLT_BRANCH_POINTS = 17;
+export const BOLT_MAX_BRANCHES = 5;
+export const BOLT_MIN_BRANCHES = 3;
+export const SPREAD_R = 2.6;
+export const SPREAD_DUR = 0.45;
+
+export const SCORCH_MAX = 256;
+
+export const VFX_PULSE_NONE = 0;
+export const VFX_PULSE_FIRE = 1;
+export const VFX_PULSE_BOLT = 2;
+export const VFX_PULSE_PHYS = 3;
+
+export const SHAKE_FIRE = 0.06;
+export const SHAKE_BOLT = 0.13;
+export const SHAKE_PHYS = 0.2;

@@ -327,13 +327,16 @@ export function mountHud(host: HTMLElement, opts: HudOptions): HudHandle {
       const downKind = kindOf(snapshot.player.faces[down] ?? 0);
       paintArmed(snapshot, upKind, downKind);
       dbg.textContent = [
-        "SHAPELAND  ·  phase 3",
+        "SHAPELAND  ·  phase 4",
         backend ? `backend       ${backend}` : "",
         `tick           ${snapshot.tick}`,
         `alpha          ${alpha.toFixed(3)}`,
         `cell           ${snapshot.player.x},${snapshot.player.y},${snapshot.player.z}  ori ${snapshot.player.orientation}`,
         `up/down        ${upKind} / ${downKind}`,
         `hash           ${hex32(snapshot.hashes.total)}`,
+        snapshot.vfx.burnDur > 0
+          ? `burn           ${snapshot.vfx.burnT}/${snapshot.vfx.burnDur}  plume ${snapshot.vfx.fireCount}`
+          : "",
       ]
         .filter((line) => line !== "")
         .join("\n");

@@ -33,4 +33,21 @@ describe("render contracts", () => {
     const hits = files.filter((file) => banned.test(readFileSync(file, "utf8")));
     expect(hits).toEqual([]);
   });
+
+  it("labels every impact shake source", () => {
+    const files: string[] = [];
+    walk(RENDER_SRC, files);
+    const hits: string[] = [];
+    for (const file of files) {
+      const src = readFileSync(file, "utf8");
+      const calls = src.match(/impactShake\(rig,/g) ?? [];
+      const labels = src.match(/\/\/ impact:/g) ?? [];
+      if (calls.length > labels.length) {
+        hits.push(
+          `${file.slice(RENDER_SRC.length + 1)}: ${calls.length} calls, ${labels.length} labels`,
+        );
+      }
+    }
+    expect(hits).toEqual([]);
+  });
 });

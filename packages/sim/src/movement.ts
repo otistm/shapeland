@@ -8,6 +8,7 @@ import {
   DT,
   FALL_GRAV_MUL,
   FALL_KILL_Y,
+  FLAG_AIR_LAND,
   FLAG_LAND,
   FLAG_LAND_DOWN,
   FLAG_LAUNCH,
@@ -260,7 +261,7 @@ function landAir(w: Mover, mask: number): void {
   } else {
     snapIdle(w, w.startX, w.destH, w.startZ, w.startOri);
   }
-  w.flags |= FLAG_LAND;
+  w.flags |= FLAG_LAND | FLAG_AIR_LAND;
   grounded(w, mask);
 }
 

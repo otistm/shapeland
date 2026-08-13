@@ -9,4 +9,5 @@ export const GOLDEN_ROLL_TICKS = 120;
 export const FRAME_BUDGET_MS = {
   simTick: 8,
   render: 8,
+  vfx: 4,
 } as const;

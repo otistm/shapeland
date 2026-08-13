@@ -1,3 +1,5 @@
+import { FIRE_MAX, SCORCH_MAX } from "./constants";
+
 export interface LayeredHashes {
   player: number;
   rng: number;
@@ -37,6 +39,27 @@ export interface MoveSnapshot {
   airY: number;
 }
 
+export interface VfxSnapshot {
+  burnT: number;
+  burnDur: number;
+  pulse: number;
+  boltSeed: number;
+  fireCount: number;
+  scorchCount: number;
+  scorchHash: number;
+  groundH: number;
+  fireX: Float32Array;
+  fireY: Float32Array;
+  fireZ: Float32Array;
+  fireT: Float32Array;
+  fireSize: Float32Array;
+  fireStretch: Float32Array;
+  fireA: Float32Array;
+  fireSeed: Float32Array;
+  scorch: Uint32Array;
+  scorchH: Int8Array;
+}
+
 export interface SimSnapshot {
   tick: number;
   seed: number;
@@ -44,6 +67,7 @@ export interface SimSnapshot {
   integrity: number;
   player: PlayerSnapshot;
   move: MoveSnapshot;
+  vfx: VfxSnapshot;
   hashes: LayeredHashes;
 }
 
@@ -71,6 +95,29 @@ export function createMoveSnapshot(): MoveSnapshot {
   };
 }
 
+export function createVfxSnapshot(): VfxSnapshot {
+  return {
+    burnT: 0,
+    burnDur: 0,
+    pulse: 0,
+    boltSeed: 0,
+    fireCount: 0,
+    scorchCount: 0,
+    scorchHash: 0,
+    groundH: 0,
+    fireX: new Float32Array(FIRE_MAX),
+    fireY: new Float32Array(FIRE_MAX),
+    fireZ: new Float32Array(FIRE_MAX),
+    fireT: new Float32Array(FIRE_MAX),
+    fireSize: new Float32Array(FIRE_MAX),
+    fireStretch: new Float32Array(FIRE_MAX),
+    fireA: new Float32Array(FIRE_MAX),
+    fireSeed: new Float32Array(FIRE_MAX),
+    scorch: new Uint32Array(SCORCH_MAX),
+    scorchH: new Int8Array(SCORCH_MAX),
+  };
+}
+
 export function createSnapshot(): SimSnapshot {
   return {
     tick: 0,
@@ -79,6 +126,7 @@ export function createSnapshot(): SimSnapshot {
     integrity: 3,
     player: { x: 0, y: 0, z: 0, orientation: 0, faces: [0, 0, 0, 0, 0, 0], found: 0 },
     move: createMoveSnapshot(),
+    vfx: createVfxSnapshot(),
     hashes: { player: 0, rng: 0, world: 0, input: 0, total: 0 },
   };
 }
@@ -105,6 +153,63 @@ export function copyMove(src: MoveSnapshot, dest: MoveSnapshot): void {
   dest.airY = src.airY;
 }
 
+function copyN(src: Float32Array, dest: Float32Array, n: number): void {
+  for (let i = 0; i < n; i++) dest[i] = src[i] ?? 0;
+}
+
+export function copyVfx(src: VfxSnapshot, dest: VfxSnapshot): void {
+  dest.burnT = src.burnT;
+  dest.burnDur = src.burnDur;
+  dest.pulse = src.pulse;
+  dest.boltSeed = src.boltSeed;
+  dest.fireCount = src.fireCount;
+  dest.scorchCount = src.scorchCount;
+  dest.scorchHash = src.scorchHash;
+  dest.groundH = src.groundH;
+  copyN(src.fireX, dest.fireX, src.fireCount);
+  copyN(src.fireY, dest.fireY, src.fireCount);
+  copyN(src.fireZ, dest.fireZ, src.fireCount);
+  copyN(src.fireT, dest.fireT, src.fireCount);
+  copyN(src.fireSize, dest.fireSize, src.fireCount);
+  copyN(src.fireStretch, dest.fireStretch, src.fireCount);
+  copyN(src.fireA, dest.fireA, src.fireCount);
+  copyN(src.fireSeed, dest.fireSeed, src.fireCount);
+  for (let i = 0; i < src.scorchCount; i++) {
+    dest.scorch[i] = src.scorch[i] ?? 0;
+    dest.scorchH[i] = src.scorchH[i] ?? 0;
+  }
+}
+
+function floatsEqual(a: Float32Array, b: Float32Array, n: number): boolean {
+  for (let i = 0; i < n; i++) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
+}
+
+export function vfxEqual(a: VfxSnapshot, b: VfxSnapshot): boolean {
+  if (
+    a.burnT !== b.burnT ||
+    a.burnDur !== b.burnDur ||
+    a.pulse !== b.pulse ||
+    a.boltSeed !== b.boltSeed ||
+    a.fireCount !== b.fireCount ||
+    a.scorchCount !== b.scorchCount ||
+    a.scorchHash !== b.scorchHash ||
+    a.groundH !== b.groundH
+  ) {
+    return false;
+  }
+  if (!floatsEqual(a.fireX, b.fireX, a.fireCount)) return false;
+  if (!floatsEqual(a.fireY, b.fireY, a.fireCount)) return false;
+  if (!floatsEqual(a.fireZ, b.fireZ, a.fireCount)) return false;
+  if (!floatsEqual(a.fireT, b.fireT, a.fireCount)) return false;
+  for (let i = 0; i < a.scorchCount; i++) {
+    if (a.scorch[i] !== b.scorch[i] || a.scorchH[i] !== b.scorchH[i]) return false;
+  }
+  return true;
+}
+
 export function copySnapshot(src: SimSnapshot, dest: SimSnapshot): void {
   dest.tick = src.tick;
   dest.seed = src.seed;
@@ -117,6 +222,7 @@ export function copySnapshot(src: SimSnapshot, dest: SimSnapshot): void {
   dest.player.found = src.player.found;
   for (let i = 0; i < 6; i++) dest.player.faces[i] = src.player.faces[i] ?? 0;
   copyMove(src.move, dest.move);
+  copyVfx(src.vfx, dest.vfx);
   dest.hashes.player = src.hashes.player;
   dest.hashes.rng = src.hashes.rng;
   dest.hashes.world = src.hashes.world;
@@ -160,6 +266,7 @@ export function snapshotsEqual(a: SimSnapshot, b: SimSnapshot): boolean {
     a.move.flags === b.move.flags &&
     a.move.vy === b.move.vy &&
     a.move.airY === b.move.airY &&
+    vfxEqual(a.vfx, b.vfx) &&
     a.hashes.player === b.hashes.player &&
     a.hashes.rng === b.hashes.rng &&
     a.hashes.world === b.hashes.world &&

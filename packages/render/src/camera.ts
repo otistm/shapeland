@@ -76,7 +76,10 @@ export function stepCamera(rig: CameraRig, input: CameraInput, ready: { current:
   rig.position.y += (wantY - rig.position.y) * k;
   rig.position.z += (wantZ - rig.position.z) * k;
 
-  if (rig.shake < SHAKE_FLOOR) rig.shake = 0;
+  if (rig.shake > 0) {
+    rig.shake *= Math.exp(-7.5 * input.dt);
+    if (rig.shake < SHAKE_FLOOR) rig.shake = 0;
+  }
 }
 
 export function lookAtY(rig: CameraRig): number {
