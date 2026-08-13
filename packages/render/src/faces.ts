@@ -15,8 +15,9 @@ export function bakeFaceCanvases(): Record<AbilityKind, HTMLCanvasElement> {
   return out;
 }
 
-export function bakeFaceTextures(): Record<AbilityKind, CanvasTexture> {
-  const canvases = bakeFaceCanvases();
+export function bakeFaceTextures(
+  canvases: Record<AbilityKind, HTMLCanvasElement> = bakeFaceCanvases(),
+): Record<AbilityKind, CanvasTexture> {
   const out = {} as Record<AbilityKind, CanvasTexture>;
   for (const kind of ABILITY_KINDS) {
     const tex = new CanvasTexture(canvases[kind]);

@@ -67,3 +67,5 @@ export function bindKeyboard(target: EventTarget, onMask: (mask: number) => void
     target.removeEventListener("keyup", onUp);
   };
 }
+
+export { loadLoadoutJson, saveLoadoutJson, readStore, writeStore } from "./storage";

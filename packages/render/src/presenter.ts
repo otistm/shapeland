@@ -1,3 +1,4 @@
+import { type AbilityKind, kindOf } from "@shapeland/content";
 import {
   CAM_FOV,
   FLOOR_SIZE,
@@ -84,7 +85,7 @@ function gridCanvas(): HTMLCanvasElement {
 
 export async function createGamePresenter(
   canvas: HTMLCanvasElement,
-  opts: { forceWebGL?: boolean } = {},
+  opts: { forceWebGL?: boolean; faceCanvases?: Record<AbilityKind, HTMLCanvasElement> } = {},
 ): Promise<GamePresenter> {
   const forceWebGL =
     opts.forceWebGL === true || !(typeof navigator !== "undefined" && "gpu" in navigator);
@@ -141,7 +142,7 @@ export async function createGamePresenter(
   ground.castShadow = false;
   scene.add(ground);
 
-  const faceTex = bakeFaceTextures();
+  const faceTex = bakeFaceTextures(opts.faceCanvases);
   const cubeMats = SIM_FACE_FOR_GROUP.map(() => makeToon({ map: faceTex.normal, color: 0xffffff }));
   const cube = new Mesh(toNonIndexedFacets(new BoxGeometry(1, 1, 1)), cubeMats);
   cube.castShadow = true;
@@ -150,6 +151,7 @@ export async function createGamePresenter(
   cubeRig.add(cube);
   scene.add(cubeRig);
   const squash = createSquash();
+  let paintedFaces = -1;
 
   const resize = (width: number, height: number) => {
     const w = Math.max(1, width);
@@ -194,6 +196,19 @@ export async function createGamePresenter(
       );
       cubeRig.scale.set(sxz, sy, sxz);
       cube.quaternion.set(frame.player.qx, frame.player.qy, frame.player.qz, frame.player.qw);
+
+      let faceKey = cur.player.found;
+      for (let i = 0; i < 6; i++) faceKey = (faceKey << 3) | (cur.player.faces[i] ?? 0);
+      if (faceKey !== paintedFaces) {
+        paintedFaces = faceKey;
+        for (let g = 0; g < 6; g++) {
+          const simFace = SIM_FACE_FOR_GROUP[g] ?? 0;
+          const kind = kindOf(cur.player.faces[simFace] ?? 0);
+          const mat = cubeMats[g];
+          const tex = faceTex[kind];
+          if (mat && tex) mat.map = tex;
+        }
+      }
 
       sun.position.set(
         frame.camera.followX + KEY_LIGHT[0],

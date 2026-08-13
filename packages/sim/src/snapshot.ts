@@ -11,6 +11,8 @@ export interface PlayerSnapshot {
   y: number;
   z: number;
   orientation: number;
+  faces: number[];
+  found: number;
 }
 
 export interface MoveSnapshot {
@@ -75,7 +77,7 @@ export function createSnapshot(): SimSnapshot {
     seed: 0,
     contentHash: 0,
     integrity: 3,
-    player: { x: 0, y: 0, z: 0, orientation: 0 },
+    player: { x: 0, y: 0, z: 0, orientation: 0, faces: [0, 0, 0, 0, 0, 0], found: 0 },
     move: createMoveSnapshot(),
     hashes: { player: 0, rng: 0, world: 0, input: 0, total: 0 },
   };
@@ -112,6 +114,8 @@ export function copySnapshot(src: SimSnapshot, dest: SimSnapshot): void {
   dest.player.y = src.player.y;
   dest.player.z = src.player.z;
   dest.player.orientation = src.player.orientation;
+  dest.player.found = src.player.found;
+  for (let i = 0; i < 6; i++) dest.player.faces[i] = src.player.faces[i] ?? 0;
   copyMove(src.move, dest.move);
   dest.hashes.player = src.hashes.player;
   dest.hashes.rng = src.hashes.rng;
@@ -130,6 +134,13 @@ export function snapshotsEqual(a: SimSnapshot, b: SimSnapshot): boolean {
     a.player.y === b.player.y &&
     a.player.z === b.player.z &&
     a.player.orientation === b.player.orientation &&
+    a.player.found === b.player.found &&
+    a.player.faces[0] === b.player.faces[0] &&
+    a.player.faces[1] === b.player.faces[1] &&
+    a.player.faces[2] === b.player.faces[2] &&
+    a.player.faces[3] === b.player.faces[3] &&
+    a.player.faces[4] === b.player.faces[4] &&
+    a.player.faces[5] === b.player.faces[5] &&
     a.move.mode === b.move.mode &&
     a.move.dir === b.move.dir &&
     a.move.phase === b.move.phase &&

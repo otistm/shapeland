@@ -19,6 +19,14 @@ export function hashContent(content: WorldContent): number {
 }
 
 export {
+  ABILITY_CSS,
+  ABILITY_LABEL,
+  ABILITY_LINE,
+  ID_BY_KIND,
+  KIND_BY_ID,
+  kindOf,
+} from "./abilities";
+export {
   ABILITY_KINDS,
   FACE_SIZE,
   drawAbilityFace,

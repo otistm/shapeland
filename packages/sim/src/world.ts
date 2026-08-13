@@ -1,5 +1,6 @@
 import { INTEGRITY } from "./constants";
-import { fnv1aF64, fnv1aI32, fnv1aStart, fnv1aU32 } from "./hash";
+import { fnv1aF64, fnv1aI32, fnv1aStart, fnv1aU8, fnv1aU32 } from "./hash";
+import { FACE_COUNT, facesLegal, grantAbility } from "./loadout";
 import { stepMovement } from "./movement";
 import { assertOrientationTables } from "./orientation";
 import { type RngBank, copyRngBank, createRngBank, sfc32Next } from "./rng";
@@ -50,6 +51,8 @@ export class World {
   spawnH = 0;
   spawnZ = 0;
   spawnOri = 0;
+  readonly faces = new Uint8Array(FACE_COUNT);
+  found = 0;
 
   constructor(config: WorldConfig) {
     assertOrientationTables();
@@ -79,6 +82,8 @@ export class World {
     out.player.y = this.h;
     out.player.z = this.z;
     out.player.orientation = this.orientation;
+    out.player.found = this.found;
+    for (let i = 0; i < FACE_COUNT; i++) out.player.faces[i] = this.faces[i] ?? 0;
     out.move.mode = this.mode;
     out.move.dir = this.dir;
     out.move.phase = this.phase;
@@ -114,6 +119,24 @@ export class World {
   cloneRng(): RngBank {
     return copyRngBank(this.rng);
   }
+
+  grant(ability: number): void {
+    this.found = grantAbility(this.found, ability);
+  }
+
+  /** Commit a draft loadout. Returns false and leaves faces unchanged if gated. */
+  commitFaces(faces: ArrayLike<number>): boolean {
+    if (!facesLegal(faces, this.found)) return false;
+    for (let i = 0; i < FACE_COUNT; i++) this.faces[i] = faces[i] ?? 0;
+    return true;
+  }
+
+  applyLoadout(found: number, faces: ArrayLike<number> | null): void {
+    this.found = found;
+    if (faces && facesLegal(faces, found)) {
+      for (let i = 0; i < FACE_COUNT; i++) this.faces[i] = faces[i] ?? 0;
+    }
+  }
 }
 
 function hashPlayer(out: SimSnapshot): number {
@@ -124,6 +147,8 @@ function hashPlayer(out: SimSnapshot): number {
   h = fnv1aI32(h, p.y);
   h = fnv1aI32(h, p.z);
   h = fnv1aU32(h, p.orientation);
+  h = fnv1aU32(h, p.found);
+  for (let i = 0; i < FACE_COUNT; i++) h = fnv1aU8(h, p.faces[i] ?? 0);
   h = fnv1aU32(h, m.mode);
   h = fnv1aU32(h, m.dir);
   h = fnv1aU32(h, m.phase);
