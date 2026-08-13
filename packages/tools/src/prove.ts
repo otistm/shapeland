@@ -1,7 +1,7 @@
-import { proveCubeGroup, proveMovement } from "@shapeland/sim";
+import { proveCubeGroup, proveMovement, proveWorld } from "@shapeland/sim";
 
 export function runProofs(log: (line: string) => void = console.log): number {
-  const lines = [...proveCubeGroup(), ...proveMovement()];
+  const lines = [...proveCubeGroup(), ...proveMovement(), ...proveWorld()];
   let failed = 0;
   for (const line of lines) {
     log(`${line.ok ? "ok  " : "FAIL"} ${line.message}`);

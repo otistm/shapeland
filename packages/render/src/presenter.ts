@@ -19,6 +19,7 @@ import {
   SUN_COLOR,
   SUN_INTENSITY,
   type SimSnapshot,
+  type Terrain,
 } from "@shapeland/sim";
 import {
   BoxGeometry,
@@ -46,6 +47,7 @@ import { SIM_FACE_FOR_GROUP } from "./orientation-map";
 import { createSquash, stepSquash } from "./squash";
 import { makeToon } from "./toon";
 import { createVfx } from "./vfx";
+import { createWorldView } from "./world-view";
 
 export type RenderBackend = "webgpu" | "webgl2";
 
@@ -86,7 +88,11 @@ function gridCanvas(): HTMLCanvasElement {
 
 export async function createGamePresenter(
   canvas: HTMLCanvasElement,
-  opts: { forceWebGL?: boolean; faceCanvases?: Record<AbilityKind, HTMLCanvasElement> } = {},
+  opts: {
+    forceWebGL?: boolean;
+    faceCanvases?: Record<AbilityKind, HTMLCanvasElement>;
+    terrain?: Terrain;
+  } = {},
 ): Promise<GamePresenter> {
   const forceWebGL =
     opts.forceWebGL === true || !(typeof navigator !== "undefined" && "gpu" in navigator);
@@ -154,6 +160,8 @@ export async function createGamePresenter(
   const squash = createSquash();
   let paintedFaces = -1;
   const vfx = createVfx(scene, rig);
+  const worldView = opts.terrain ? createWorldView(scene, opts.terrain, faceTex) : null;
+  let worldClock = 0;
   const reducedMotion = (): boolean =>
     typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -228,6 +236,8 @@ export async function createGamePresenter(
         { x: cubeRig.position.x, y: cubeRig.position.y, z: cubeRig.position.z },
         reducedMotion(),
       );
+      worldClock += dt;
+      worldView?.present(cur, dt, worldClock, rig);
 
       camera.position.set(rig.position.x, rig.position.y, rig.position.z);
       const shake = rig.shake;
@@ -244,6 +254,7 @@ export async function createGamePresenter(
     resize,
     dispose() {
       vfx.dispose();
+      worldView?.dispose();
       renderer.dispose();
     },
   };

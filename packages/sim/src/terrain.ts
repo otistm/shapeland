@@ -43,4 +43,50 @@ export class Terrain {
   isGap(x: number, z: number): boolean {
     return this.gaps.has(packXZ(x, z));
   }
+
+  forEachWall(fn: (x: number, z: number) => void): void {
+    for (const key of this.walls) {
+      const p = unpackXZ(key);
+      fn(p.x, p.z);
+    }
+  }
+
+  forEachGap(fn: (x: number, z: number) => void): void {
+    for (const key of this.gaps) {
+      const p = unpackXZ(key);
+      fn(p.x, p.z);
+    }
+  }
+
+  forEachHeight(fn: (x: number, z: number, h: number) => void): void {
+    for (const [key, h] of this.heights) {
+      const p = unpackXZ(key);
+      fn(p.x, p.z, h);
+    }
+  }
+}
+
+/** The only sanctioned height writer besides tests. Peak − Chebyshev ring. */
+export function raiseRect(
+  terrain: Terrain,
+  x0: number,
+  z0: number,
+  x1: number,
+  z1: number,
+  h: number,
+): void {
+  const height = h | 0;
+  for (let x = x0; x <= x1; x++) {
+    for (let z = z0; z <= z1; z++) {
+      if (height > terrain.height(x, z)) terrain.setHeight(x, z, height);
+    }
+  }
+}
+
+export function terraceHill(terrain: Terrain, cx: number, cz: number, peak: number): void {
+  const p = peak | 0;
+  if (p < 1) return;
+  for (let r = 0; r < p; r++) {
+    raiseRect(terrain, cx - r, cz - r, cx + r, cz + r, p - r);
+  }
 }

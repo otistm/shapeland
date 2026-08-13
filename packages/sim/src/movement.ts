@@ -9,6 +9,7 @@ import {
   FALL_GRAV_MUL,
   FALL_KILL_Y,
   FLAG_AIR_LAND,
+  FLAG_FALL_KILL,
   FLAG_LAND,
   FLAG_LAND_DOWN,
   FLAG_LAUNCH,
@@ -63,6 +64,7 @@ export interface Mover {
   spawnZ: number;
   spawnOri: number;
   terrain: Terrain;
+  occupied(x: number, z: number): boolean;
 }
 
 export function canRollTo(terrain: Terrain, x: number, z: number, tx: number, tz: number): boolean {
@@ -171,7 +173,7 @@ function tryMove(w: Mover, dir: number): void {
   const dz = DIR_DZ[dir] ?? 0;
   const tx = w.x + dx;
   const tz = w.z + dz;
-  if (canRollTo(w.terrain, w.x, w.z, tx, tz)) {
+  if (canRollTo(w.terrain, w.x, w.z, tx, tz) && !w.occupied(tx, tz)) {
     const nextOri = rollTowardDir(w.orientation, dir);
     beginMove(w, MODE_ROLL, dir, ROLL_TICKS, tx, w.terrain.height(tx, tz), tz, nextOri);
     return;
@@ -192,9 +194,20 @@ function tryJump(w: Mover): void {
   beginMove(w, MODE_CROUCH, DIR_NONE, CROUCH_TICKS, w.x, w.h, w.z, w.orientation);
 }
 
+function leapClear(w: Mover, dir: number): boolean {
+  if (!canLeapDir(w.terrain, w.x, w.z, dir)) return false;
+  const dx = DIR_DX[dir] ?? 0;
+  const dz = DIR_DZ[dir] ?? 0;
+  const mx = w.x + dx;
+  const mz = w.z + dz;
+  const ex = w.x + dx * LEAP_CELLS;
+  const ez = w.z + dz * LEAP_CELLS;
+  return !w.occupied(mx, mz) && !w.occupied(ex, ez);
+}
+
 function launch(w: Mover, mask: number): void {
   let dir = dirFromMask(mask);
-  if (dir !== DIR_NONE && !canLeapDir(w.terrain, w.x, w.z, dir)) dir = DIR_NONE;
+  if (dir !== DIR_NONE && !leapClear(w, dir)) dir = DIR_NONE;
   const leap = dir !== DIR_NONE ? 1 : 0;
   const dest =
     leap === 1 ? leapPose(w.x, w.z, w.orientation, dir) : { x: w.x, z: w.z, ori: w.orientation };
@@ -281,7 +294,10 @@ function respawn(w: Mover): void {
 function stepFall(w: Mover): void {
   w.vy -= GRAV * FALL_GRAV_MUL * DT;
   w.airY += w.vy * DT;
-  if (w.airY < FALL_KILL_Y) respawn(w);
+  if (w.airY < FALL_KILL_Y) {
+    w.flags |= FLAG_FALL_KILL;
+    respawn(w);
+  }
 }
 
 function stepAir(w: Mover, mask: number): void {

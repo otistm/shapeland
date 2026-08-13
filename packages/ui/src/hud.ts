@@ -2,7 +2,13 @@ import {
   ABILITY_CSS,
   ABILITY_LABEL,
   ABILITY_LINE,
+  AIM_HINT,
   type AbilityKind,
+  BANNER_TEXT,
+  NPC_LINES,
+  NPC_NAME,
+  REGION_NAME,
+  STAGE_HINT,
   kindOf,
 } from "@shapeland/content";
 import {
@@ -91,6 +97,28 @@ export function mountHud(host: HTMLElement, opts: HudOptions): HudHandle {
   root.appendChild(topbar);
   root.appendChild(overlay);
   root.appendChild(ghost);
+
+  const locname = document.createElement("div");
+  locname.id = "locname";
+  locname.innerHTML = '<div class="t"></div><div class="rule"></div>';
+  const banner = document.createElement("div");
+  banner.id = "banner";
+  const footer = document.createElement("div");
+  footer.id = "footer";
+  footer.innerHTML = '<span class="hint" id="hintEl"></span>';
+  const speakBtn = document.createElement("button");
+  speakBtn.className = "tbtn";
+  speakBtn.id = "speak";
+  speakBtn.type = "button";
+  speakBtn.textContent = "SPEAK";
+  const dialog = document.createElement("div");
+  dialog.id = "dialog";
+  dialog.innerHTML = `<div class="who">${NPC_NAME}</div><div class="line"></div><div class="cue">TAP TO CONTINUE</div>`;
+  root.appendChild(locname);
+  root.appendChild(banner);
+  root.appendChild(footer);
+  root.appendChild(speakBtn);
+  root.appendChild(dialog);
   host.appendChild(root);
 
   const netEl = overlay.querySelector("#net");
@@ -102,6 +130,9 @@ export function mountHud(host: HTMLElement, opts: HudOptions): HudHandle {
   const sb = armed.querySelector("#sb");
   const underEl = armed.querySelector("#underEl");
   const dbg = armed.querySelector("#dbg");
+  const locTitle = locname.querySelector(".t");
+  const hintEl = footer.querySelector("#hintEl");
+  const dialogLine = dialog.querySelector(".line");
   if (
     !(netEl instanceof HTMLElement) ||
     !(trayEl instanceof HTMLElement) ||
@@ -111,7 +142,10 @@ export function mountHud(host: HTMLElement, opts: HudOptions): HudHandle {
     !(nm instanceof HTMLElement) ||
     !(sb instanceof HTMLElement) ||
     !(underEl instanceof HTMLElement) ||
-    !(dbg instanceof HTMLElement)
+    !(dbg instanceof HTMLElement) ||
+    !(locTitle instanceof HTMLElement) ||
+    !(hintEl instanceof HTMLElement) ||
+    !(dialogLine instanceof HTMLElement)
   ) {
     throw new Error("hud mount failed");
   }
@@ -136,6 +170,13 @@ export function mountHud(host: HTMLElement, opts: HudOptions): HudHandle {
   let latest: SimSnapshot | undefined;
   let draft = [0, 0, 0, 0, 0, 0];
   let open = false;
+  let dialogOpen = false;
+  let dialogIdx = 0;
+  let dialogLines: readonly string[] = [];
+  let lastRegion = -1;
+  let locUntil = 0;
+  let bannerUntil = 0;
+  let lastBannerTick = -1;
   let drag: DragState | null = null;
   let selected: number | null = null;
   let pending: { kind: number; face: number | null; x0: number; y0: number } | null = null;
@@ -195,10 +236,40 @@ export function mountHud(host: HTMLElement, opts: HudOptions): HudHandle {
     }
   };
 
+  const emitModal = () => {
+    opts.onModal?.(open || dialogOpen);
+  };
+
+  const setDialog = (next: boolean) => {
+    dialogOpen = next;
+    dialog.classList.toggle("open", next);
+    speakBtn.classList.toggle("on", false);
+    emitModal();
+  };
+
+  const openDialog = () => {
+    if (open || !latest) return;
+    dialogLines = NPC_LINES[latest.world.stage] ?? NPC_LINES[0] ?? [];
+    dialogIdx = 0;
+    dialogLine.textContent = dialogLines[0] ?? "";
+    setDialog(true);
+  };
+
+  const advanceDialog = () => {
+    if (!dialogOpen) return;
+    dialogIdx += 1;
+    if (dialogIdx >= dialogLines.length) {
+      setDialog(false);
+      return;
+    }
+    dialogLine.textContent = dialogLines[dialogIdx] ?? "";
+  };
+
   const setOpen = (next: boolean) => {
+    if (next && dialogOpen) setDialog(false);
     open = next;
     overlay.classList.toggle("open", next);
-    opts.onModal?.(next);
+    emitModal();
     if (next && latest) {
       draft = cloneFaces(latest.player.faces);
       equipUp = UP(latest.player.orientation);
@@ -292,13 +363,26 @@ export function mountHud(host: HTMLElement, opts: HudOptions): HudHandle {
 
   equipBtn.addEventListener("click", () => setOpen(true));
   done.addEventListener("click", commit);
+  speakBtn.addEventListener("click", openDialog);
+  dialog.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    advanceDialog();
+  });
   window.addEventListener("keydown", (e) => {
-    if (e.code === "KeyE" && !open) {
+    if (dialogOpen && (e.code === "Space" || e.code === "Enter")) {
+      e.preventDefault();
+      advanceDialog();
+      return;
+    }
+    if (e.code === "KeyE" && !open && !dialogOpen) {
       e.preventDefault();
       setOpen(true);
     } else if (e.code === "Escape" && open) {
       e.preventDefault();
       commit();
+    } else if (e.code === "Escape" && dialogOpen) {
+      e.preventDefault();
+      setDialog(false);
     }
   });
 
@@ -326,8 +410,35 @@ export function mountHud(host: HTMLElement, opts: HudOptions): HudHandle {
       const upKind = kindOf(snapshot.player.faces[up] ?? 0);
       const downKind = kindOf(snapshot.player.faces[down] ?? 0);
       paintArmed(snapshot, upKind, downKind);
+      const now = Date.now();
+      if (snapshot.world.sliceOn !== 0 && snapshot.world.region !== lastRegion) {
+        lastRegion = snapshot.world.region;
+        locTitle.textContent = REGION_NAME[lastRegion] ?? "";
+        locname.classList.add("show");
+        locUntil = now + 3400;
+      }
+      if (locUntil > 0 && now >= locUntil) {
+        locname.classList.remove("show");
+        locUntil = 0;
+      }
+      if (snapshot.world.banner !== 0 && snapshot.tick !== lastBannerTick) {
+        lastBannerTick = snapshot.tick;
+        banner.textContent = BANNER_TEXT[snapshot.world.banner] ?? "";
+        banner.classList.add("show");
+        bannerUntil = now + 3500;
+      }
+      if (bannerUntil > 0 && now >= bannerUntil) {
+        banner.classList.remove("show");
+        bannerUntil = 0;
+      }
+      hintEl.textContent =
+        snapshot.world.aiming !== 0 ? AIM_HINT : (STAGE_HINT[snapshot.world.stage] ?? "");
+      const canSpeak =
+        snapshot.world.npcRange !== 0 && !open && !dialogOpen && snapshot.world.sliceOn !== 0;
+      speakBtn.classList.toggle("on", canSpeak);
+      if (dialogOpen && snapshot.world.npcRange === 0) setDialog(false);
       dbg.textContent = [
-        "SHAPELAND  ·  phase 4",
+        "SHAPELAND  ·  phase 5",
         backend ? `backend       ${backend}` : "",
         `tick           ${snapshot.tick}`,
         `alpha          ${alpha.toFixed(3)}`,

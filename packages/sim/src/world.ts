@@ -1,10 +1,11 @@
-import { INTEGRITY, SCORCH_MAX } from "./constants";
+import { INTEGRITY, SCORCH_MAX, TURRET_COUNT } from "./constants";
 import { FireField } from "./fire";
 import { fnv1aF64, fnv1aI32, fnv1aStart, fnv1aU8, fnv1aU32 } from "./hash";
 import { FACE_COUNT, facesLegal, grantAbility } from "./loadout";
 import { stepMovement } from "./movement";
 import { assertOrientationTables } from "./orientation";
 import { type RngBank, copyRngBank, createRngBank, sfc32Next } from "./rng";
+import { bootSlice, occupied as occupiedCell, stepSlice } from "./slice";
 import { type SimSnapshot, createSnapshot } from "./snapshot";
 import { Terrain } from "./terrain";
 import { copyFireLive, hashFire, stepVfx } from "./vfx";
@@ -13,6 +14,7 @@ export interface WorldConfig {
   seed: number;
   contentHash: number;
   terrain?: Terrain;
+  slice?: boolean;
 }
 
 export class World {
@@ -65,12 +67,39 @@ export class World {
   scorchCount = 0;
   scorchHash = 0;
 
+  sliceOn = 0;
+  stage = 0;
+  doorOpen = 1;
+  shrineTaken = 0;
+  glyphTaken = 0;
+  iframes = 0;
+  npcRange = 0;
+  banner = 0;
+  region = 0;
+  announced = 0;
+  npcOn = 0;
+  aiming = 0;
+  turretAlive = 0;
+  readonly turretX = new Int8Array(TURRET_COUNT);
+  readonly turretZ = new Int8Array(TURRET_COUNT);
+  readonly turretState = new Uint8Array(TURRET_COUNT);
+  readonly turretT = new Uint16Array(TURRET_COUNT);
+  readonly turretResist = new Uint8Array(TURRET_COUNT);
+  readonly teleN = new Uint8Array(TURRET_COUNT);
+  readonly teleX = new Int8Array(TURRET_COUNT * 5);
+  readonly teleZ = new Int8Array(TURRET_COUNT * 5);
+
   constructor(config: WorldConfig) {
     assertOrientationTables();
     this.seed = config.seed >>> 0;
     this.contentHash = config.contentHash >>> 0;
     this.rng = createRngBank(this.seed);
     this.terrain = config.terrain ?? new Terrain();
+    if (config.slice) bootSlice(this);
+  }
+
+  occupied(x: number, z: number): boolean {
+    return occupiedCell(this, x, z);
   }
 
   step(mask: number): void {
@@ -78,6 +107,7 @@ export class World {
     this.buttonMask = mask | 0;
     stepMovement(this, mask | 0);
     stepVfx(this);
+    stepSlice(this);
     sfc32Next(this.rng.world);
   }
 
@@ -138,6 +168,24 @@ export class World {
       v.fireA,
       v.fireSeed,
     );
+    const w = out.world;
+    w.sliceOn = this.sliceOn;
+    w.stage = this.stage;
+    w.doorOpen = this.doorOpen;
+    w.shrineTaken = this.shrineTaken;
+    w.glyphTaken = this.glyphTaken;
+    w.iframes = this.iframes;
+    w.npcRange = this.npcRange;
+    w.banner = this.banner;
+    w.region = this.region;
+    w.aiming = this.aiming;
+    w.turretAlive = this.turretAlive;
+    w.turretState.set(this.turretState);
+    w.turretT.set(this.turretT);
+    w.turretResist.set(this.turretResist);
+    w.teleN.set(this.teleN);
+    w.teleX.set(this.teleX);
+    w.teleZ.set(this.teleZ);
     out.hashes.player = hashPlayer(out);
     out.hashes.rng = hashRng(this.rng);
     out.hashes.world = hashWorld(this.contentHash, this.tick, out, hashFire(this.fire));
@@ -222,16 +270,36 @@ function hashRng(rng: RngBank): number {
 }
 
 function hashWorld(contentHash: number, tick: number, out: SimSnapshot, fireHash: number): number {
+  const w = out.world;
   let h = fnv1aStart();
   h = fnv1aU32(h, contentHash);
   h = fnv1aU32(h, tick);
+  h = fnv1aU32(h, out.integrity);
   h = fnv1aU32(h, out.vfx.burnT);
   h = fnv1aU32(h, out.vfx.burnDur);
   h = fnv1aU32(h, out.vfx.pulse);
   h = fnv1aU32(h, out.vfx.boltSeed);
   h = fnv1aU32(h, out.vfx.scorchHash);
   h = fnv1aU32(h, out.vfx.fireCount);
-  return fnv1aU32(h, fireHash);
+  h = fnv1aU32(h, fireHash);
+  h = fnv1aU32(h, w.sliceOn);
+  h = fnv1aU32(h, w.stage);
+  h = fnv1aU32(h, w.doorOpen);
+  h = fnv1aU32(h, w.shrineTaken);
+  h = fnv1aU32(h, w.glyphTaken);
+  h = fnv1aU32(h, w.iframes);
+  h = fnv1aU32(h, w.npcRange);
+  h = fnv1aU32(h, w.banner);
+  h = fnv1aU32(h, w.region);
+  h = fnv1aU32(h, w.aiming);
+  h = fnv1aU32(h, w.turretAlive);
+  for (let i = 0; i < TURRET_COUNT; i++) {
+    h = fnv1aU8(h, w.turretState[i] ?? 0);
+    h = fnv1aU32(h, w.turretT[i] ?? 0);
+    h = fnv1aU8(h, w.turretResist[i] ?? 0);
+    h = fnv1aU8(h, w.teleN[i] ?? 0);
+  }
+  return h;
 }
 
 function combineLayers(h: {

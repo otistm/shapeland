@@ -156,3 +156,46 @@ export const VFX_PULSE_PHYS = 3;
 export const SHAKE_FIRE = 0.06;
 export const SHAKE_BOLT = 0.13;
 export const SHAKE_PHYS = 0.2;
+export const SHAKE_HURT = 0.18;
+export const SHAKE_DOOR = 0.15;
+export const SHAKE_SENTRY = 0.14;
+export const SHAKE_BLAST = 0.05;
+
+export const TELE_COLOR = 0xb8412a;
+
+export const TURRET_COUNT = 5;
+export const TURRET_AIM_TICKS = 180;
+export const TURRET_COOL_TICKS = 192;
+export const I_FRAMES_TICKS = 120;
+export const RESPAWN_IFRAMES = 144;
+/** Integer d² cutoff for AOE_R + KILL_PAD (2.35² ≈ 5.52 → 5). */
+export const KILL_RANGE2 = 5;
+/** Integer d² cutoff for TURRET_RANGE 6.5 (42.25 → 42). */
+export const TURRET_RANGE2 = 42;
+
+export const TURRET_IDLE = 0;
+export const TURRET_STATE_AIM = 1;
+export const TURRET_STATE_COOL = 2;
+
+export const STAGE_SEEK = 0;
+export const STAGE_RAISE = 1;
+export const STAGE_TRAVEL = 2;
+export const STAGE_INSIDE = 3;
+export const STAGE_DONE = 4;
+
+export const REGION_BLANK = 0;
+export const REGION_GAUNTLET = 1;
+export const REGION_CHAMBER = 2;
+
+export const BANNER_NONE = 0;
+export const BANNER_SHRINE = 1;
+export const BANNER_DOOR = 2;
+export const BANNER_GLYPH = 3;
+export const BANNER_CRACK = 4;
+export const BANNER_CLEAR = 5;
+
+export const FLAG_HURT = 1 << 6;
+export const FLAG_KILL = 1 << 7;
+export const FLAG_DOOR = 1 << 8;
+export const FLAG_BLAST = 1 << 9;
+export const FLAG_FALL_KILL = 1 << 10;

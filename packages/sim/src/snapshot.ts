@@ -1,4 +1,4 @@
-import { FIRE_MAX, SCORCH_MAX } from "./constants";
+import { FIRE_MAX, SCORCH_MAX, TURRET_COUNT } from "./constants";
 
 export interface LayeredHashes {
   player: number;
@@ -60,6 +60,26 @@ export interface VfxSnapshot {
   scorchH: Int8Array;
 }
 
+export interface WorldSliceSnapshot {
+  sliceOn: number;
+  stage: number;
+  doorOpen: number;
+  shrineTaken: number;
+  glyphTaken: number;
+  iframes: number;
+  npcRange: number;
+  banner: number;
+  region: number;
+  aiming: number;
+  turretAlive: number;
+  turretState: Uint8Array;
+  turretT: Uint16Array;
+  turretResist: Uint8Array;
+  teleN: Uint8Array;
+  teleX: Int8Array;
+  teleZ: Int8Array;
+}
+
 export interface SimSnapshot {
   tick: number;
   seed: number;
@@ -68,6 +88,7 @@ export interface SimSnapshot {
   player: PlayerSnapshot;
   move: MoveSnapshot;
   vfx: VfxSnapshot;
+  world: WorldSliceSnapshot;
   hashes: LayeredHashes;
 }
 
@@ -118,6 +139,28 @@ export function createVfxSnapshot(): VfxSnapshot {
   };
 }
 
+export function createWorldSliceSnapshot(): WorldSliceSnapshot {
+  return {
+    sliceOn: 0,
+    stage: 0,
+    doorOpen: 1,
+    shrineTaken: 0,
+    glyphTaken: 0,
+    iframes: 0,
+    npcRange: 0,
+    banner: 0,
+    region: 0,
+    aiming: 0,
+    turretAlive: 0,
+    turretState: new Uint8Array(TURRET_COUNT),
+    turretT: new Uint16Array(TURRET_COUNT),
+    turretResist: new Uint8Array(TURRET_COUNT),
+    teleN: new Uint8Array(TURRET_COUNT),
+    teleX: new Int8Array(TURRET_COUNT * 5),
+    teleZ: new Int8Array(TURRET_COUNT * 5),
+  };
+}
+
 export function createSnapshot(): SimSnapshot {
   return {
     tick: 0,
@@ -127,6 +170,7 @@ export function createSnapshot(): SimSnapshot {
     player: { x: 0, y: 0, z: 0, orientation: 0, faces: [0, 0, 0, 0, 0, 0], found: 0 },
     move: createMoveSnapshot(),
     vfx: createVfxSnapshot(),
+    world: createWorldSliceSnapshot(),
     hashes: { player: 0, rng: 0, world: 0, input: 0, total: 0 },
   };
 }
@@ -210,6 +254,26 @@ export function vfxEqual(a: VfxSnapshot, b: VfxSnapshot): boolean {
   return true;
 }
 
+export function copyWorldSlice(src: WorldSliceSnapshot, dest: WorldSliceSnapshot): void {
+  dest.sliceOn = src.sliceOn;
+  dest.stage = src.stage;
+  dest.doorOpen = src.doorOpen;
+  dest.shrineTaken = src.shrineTaken;
+  dest.glyphTaken = src.glyphTaken;
+  dest.iframes = src.iframes;
+  dest.npcRange = src.npcRange;
+  dest.banner = src.banner;
+  dest.region = src.region;
+  dest.aiming = src.aiming;
+  dest.turretAlive = src.turretAlive;
+  dest.turretState.set(src.turretState);
+  dest.turretT.set(src.turretT);
+  dest.turretResist.set(src.turretResist);
+  dest.teleN.set(src.teleN);
+  dest.teleX.set(src.teleX);
+  dest.teleZ.set(src.teleZ);
+}
+
 export function copySnapshot(src: SimSnapshot, dest: SimSnapshot): void {
   dest.tick = src.tick;
   dest.seed = src.seed;
@@ -223,6 +287,7 @@ export function copySnapshot(src: SimSnapshot, dest: SimSnapshot): void {
   for (let i = 0; i < 6; i++) dest.player.faces[i] = src.player.faces[i] ?? 0;
   copyMove(src.move, dest.move);
   copyVfx(src.vfx, dest.vfx);
+  copyWorldSlice(src.world, dest.world);
   dest.hashes.player = src.hashes.player;
   dest.hashes.rng = src.hashes.rng;
   dest.hashes.world = src.hashes.world;
@@ -267,6 +332,17 @@ export function snapshotsEqual(a: SimSnapshot, b: SimSnapshot): boolean {
     a.move.vy === b.move.vy &&
     a.move.airY === b.move.airY &&
     vfxEqual(a.vfx, b.vfx) &&
+    a.world.sliceOn === b.world.sliceOn &&
+    a.world.stage === b.world.stage &&
+    a.world.doorOpen === b.world.doorOpen &&
+    a.world.shrineTaken === b.world.shrineTaken &&
+    a.world.glyphTaken === b.world.glyphTaken &&
+    a.world.iframes === b.world.iframes &&
+    a.world.npcRange === b.world.npcRange &&
+    a.world.banner === b.world.banner &&
+    a.world.region === b.world.region &&
+    a.world.aiming === b.world.aiming &&
+    a.world.turretAlive === b.world.turretAlive &&
     a.hashes.player === b.hashes.player &&
     a.hashes.rng === b.hashes.rng &&
     a.hashes.world === b.hashes.world &&

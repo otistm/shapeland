@@ -10,4 +10,5 @@ export const FRAME_BUDGET_MS = {
   simTick: 8,
   render: 8,
   vfx: 4,
+  world: 1,
 } as const;

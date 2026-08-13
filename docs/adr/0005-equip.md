@@ -20,8 +20,8 @@ rolling still decides what is armed.
    LEFT/FRONT/RIGHT/BACK across the belt, BOTTOM under FRONT.
 5. **One `drawAbilityFace` authoring point.** Web bakes canvases once and hands them to both the
    presenter and the overlay.
-6. **Until Phase 5**, a missing save grants the three elemental finds in `apps/web` so the net is
-   playable. Sim default remains blank.
+6. **Sandbox finds until Phase 5.** A missing save granted the three elementals so the net was
+   playable. **Superseded by ADR 0007:** the shrine is the find.
 
 ## Consequences
 

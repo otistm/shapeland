@@ -12,6 +12,16 @@ export const EMPTY_CONTENT: WorldContent = {
   id: "empty",
 };
 
+export { SLICE_CONTENT } from "./slice";
+export {
+  AIM_HINT,
+  BANNER_TEXT,
+  NPC_LINES,
+  NPC_NAME,
+  REGION_NAME,
+  STAGE_HINT,
+} from "./slice";
+
 export function hashContent(content: WorldContent): number {
   let n = 0;
   for (let i = 0; i < content.id.length; i++) n = (n + content.id.charCodeAt(i)) | 0;
