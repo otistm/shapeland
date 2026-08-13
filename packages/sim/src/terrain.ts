@@ -1,3 +1,5 @@
+import { TERRAIN_PEAK_MAX } from "./constants";
+
 /** Occupancy keys, not meshes. Packed xz, integer heights, O(1) lookups. */
 
 export function packXZ(x: number, z: number): number {
@@ -84,7 +86,8 @@ export function raiseRect(
 }
 
 export function terraceHill(terrain: Terrain, cx: number, cz: number, peak: number): void {
-  const p = peak | 0;
+  let p = peak | 0;
+  if (p > TERRAIN_PEAK_MAX) p = TERRAIN_PEAK_MAX;
   if (p < 1) return;
   for (let r = 0; r < p; r++) {
     raiseRect(terrain, cx - r, cz - r, cx + r, cz + r, p - r);

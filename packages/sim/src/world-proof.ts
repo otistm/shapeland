@@ -226,13 +226,13 @@ export function proveWorld(): ProofLine[] {
   const fromStart = bfs(world, START.x, START.z, 0, true, true);
   const shrineD = minAt(fromStart, SHRINE.x, SHRINE.z);
   const socketClosed = minAt(fromStart, SOCKET.x, SOCKET.z);
-  log(lines, shrineD < INF, `start → shrine in ${shrineD} moves`);
-  log(lines, socketClosed < INF, `start → socket (door sealed) in ${socketClosed} moves`);
+  log(lines, shrineD === 7, `start → shrine in ${shrineD} moves`);
+  log(lines, socketClosed === 20, `start → socket (door sealed) in ${socketClosed} moves`);
 
   world.doorOpen = 1;
   const fromSocket = bfs(world, SOCKET.x, SOCKET.z, 0, true, true);
   const glyphD = minAt(fromSocket, GLYPH.x, GLYPH.z);
-  log(lines, glyphD < INF, `socket → glyph with door open in ${glyphD} moves`);
+  log(lines, glyphD === 5, `socket → glyph with door open in ${glyphD} moves`);
   world.doorOpen = 0;
 
   let arrive = INF;
@@ -249,8 +249,8 @@ export function proveWorld(): ProofLine[] {
   }
   log(
     lines,
-    arrive < INF && solve < INF && solve > arrive && solve <= arrive + 6,
-    `socket fire-down ${solve} vs arrive ${arrive} (want solve > arrive and ≤ arrive+6)`,
+    arrive === 13 && solve === 15,
+    `socket fire-down ${solve} vs arrive ${arrive} (want 15 vs 13)`,
   );
 
   const leapPath = bfs(world, SHRINE.x, SHRINE.z, 0, true, false);
@@ -259,8 +259,8 @@ export function proveWorld(): ProofLine[] {
   const rollCost = minAt(rollPath, SOCKET.x, SOCKET.z);
   log(
     lines,
-    leapCost < INF && rollCost < INF && rollCost > leapCost,
-    `chasm: roll-only ${rollCost} vs leap ${leapCost} shrine → socket`,
+    leapCost === 13 && rollCost === 29,
+    `chasm: roll-only ${rollCost} vs leap ${leapCost} shrine → socket (want 29 vs 13)`,
   );
 
   const npcWorld = new World({ seed: 1, contentHash: 1, slice: true });

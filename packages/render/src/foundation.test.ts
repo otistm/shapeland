@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { CAM_AIM, CAM_FOV, CAM_OFFSET, CUBE_BODY, TOON_BANDS, UP } from "@shapeland/sim";
+import { CAM_AIM, CAM_CLIMB, CAM_FOV, CAM_OFFSET, CUBE_BODY, TOON_BANDS, UP } from "@shapeland/sim";
 import { describe, expect, it } from "vitest";
 import {
   cameraOffsetLength,
@@ -35,6 +35,21 @@ describe("qa-cam", () => {
     expect(rig.position.y).toBeCloseTo(yAtRest, 5);
     expect(lookAtY(rig)).toBeCloseTo(0.55, 5);
     expect(rig.shake).toBe(0);
+  });
+
+  it("climbs toward a terrace rest height slower than a roll", () => {
+    const rig = createCameraRig();
+    const ready = { current: false };
+    stepCamera(rig, { followX: 0, followZ: 0, restY: 0, dt: 1 }, ready);
+    const y0 = rig.target.y;
+    stepCamera(rig, { followX: 0, followZ: 0, restY: 1, dt: 1 / 120 }, ready);
+    expect(rig.target.y).toBeGreaterThan(y0);
+    expect(rig.target.y).toBeLessThan(1);
+    expect(CAM_CLIMB).toBe(4.5);
+    for (let i = 0; i < 200; i++) {
+      stepCamera(rig, { followX: 0, followZ: 0, restY: 1, dt: 1 / 120 }, ready);
+    }
+    expect(rig.target.y).toBeCloseTo(1, 2);
   });
 
   it("does not shake on traversal", () => {

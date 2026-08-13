@@ -438,7 +438,7 @@ export function mountHud(host: HTMLElement, opts: HudOptions): HudHandle {
       speakBtn.classList.toggle("on", canSpeak);
       if (dialogOpen && snapshot.world.npcRange === 0) setDialog(false);
       dbg.textContent = [
-        "SHAPELAND  ·  phase 5",
+        "SHAPELAND  ·  phase 6",
         backend ? `backend       ${backend}` : "",
         `tick           ${snapshot.tick}`,
         `alpha          ${alpha.toFixed(3)}`,

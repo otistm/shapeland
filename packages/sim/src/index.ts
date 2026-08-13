@@ -15,6 +15,7 @@ export * from "./rng";
 export * from "./slice";
 export * from "./snapshot";
 export * from "./terrain";
+export * from "./terrain-proof";
 export * from "./vfx";
 export * from "./world";
 export * from "./world-proof";

@@ -29,5 +29,5 @@ and resting ground height, never the eased cube.
 ## Consequences
 
 - Terrain stays flat in the default world; walls, gaps, and integer heights are injected by tests
-  until Phase 6.
+  and by the Phase 5 slice stamp. Phase 6 owns sky-exposure readability of those heights.
 - Golden idle hashes change because the player layer now includes move state.

@@ -11,4 +11,5 @@ export const FRAME_BUDGET_MS = {
   render: 8,
   vfx: 4,
   world: 1,
+  terrain: 1,
 } as const;

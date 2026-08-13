@@ -36,4 +36,13 @@ describe("sim purity", () => {
     }
     expect(hits).toEqual([]);
   });
+
+  it("writes heights only through Terrain.setHeight in terrain.ts", () => {
+    const files: string[] = [];
+    walk(SIM_SRC, files);
+    const hits = files
+      .filter((file) => !file.endsWith("terrain.ts"))
+      .filter((file) => /\.setHeight\(/.test(readFileSync(file, "utf8")));
+    expect(hits).toEqual([]);
+  });
 });

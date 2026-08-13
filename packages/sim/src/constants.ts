@@ -199,3 +199,9 @@ export const FLAG_KILL = 1 << 7;
 export const FLAG_DOOR = 1 << 8;
 export const FLAG_BLAST = 1 << 9;
 export const FLAG_FALL_KILL = 1 << 10;
+
+export const SKY_TOP = 1.0;
+export const SKY_SIDE = 0.78;
+export const SKY_CREV = 0.86;
+export const SKY_STACK = 0.055;
+export const TERRAIN_PEAK_MAX = 3;

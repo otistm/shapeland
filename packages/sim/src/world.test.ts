@@ -12,6 +12,7 @@ import {
   World,
   hurt,
   occupied,
+  proveTerrain,
   proveWorld,
   regionOf,
   stampSlice,
@@ -141,6 +142,13 @@ describe("regions", () => {
 describe("world proofs", () => {
   it("proves reachability, socket gating, and turret fairness", () => {
     const failed = proveWorld()
+      .filter((line) => !line.ok)
+      .map((line) => line.message);
+    expect(failed).toEqual([]);
+  });
+
+  it("proves terrace construction, cliffs, and reachable summits", () => {
+    const failed = proveTerrain()
       .filter((line) => !line.ok)
       .map((line) => line.message);
     expect(failed).toEqual([]);

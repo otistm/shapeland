@@ -21,4 +21,18 @@ describe("camera feed vs body ease", () => {
     expect(cam.followX).not.toBeCloseTo(pose.x, 3);
     expect(cam.restY).toBe(0);
   });
+
+  it("feeds resting destination height, never the roll lift", () => {
+    const s = createSnapshot();
+    s.move.mode = MODE_ROLL;
+    s.move.dir = 1;
+    s.move.phase = 11;
+    s.move.duration = ROLL_TICKS;
+    s.move.startY = 0;
+    s.move.destY = 2;
+    const cam = cameraTarget(s);
+    const pose = visualPose(s);
+    expect(cam.restY).toBe(2);
+    expect(pose.y).not.toBeCloseTo(2.5, 2);
+  });
 });

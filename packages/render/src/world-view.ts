@@ -39,6 +39,7 @@ import {
 } from "three/webgpu";
 import { type CameraRig, impactShake } from "./camera";
 import { toNonIndexedFacets } from "./geometry";
+import { makeTerrainMaterials } from "./terrain-mat";
 import { makeToon } from "./toon";
 
 const INK = 0x2e2e38;
@@ -95,7 +96,12 @@ function floodTexture(): CanvasTexture {
   return tex;
 }
 
-function makePickup(x: number, z: number, map: Texture): { icon: Mesh; decal: Mesh } {
+function makePickup(
+  x: number,
+  z: number,
+  map: Texture,
+  ground: number,
+): { icon: Mesh; decal: Mesh } {
   const decalMat = new MeshBasicNodeMaterial({
     map,
     transparent: true,
@@ -112,9 +118,9 @@ function makePickup(x: number, z: number, map: Texture): { icon: Mesh; decal: Me
   });
   const decal = new Mesh(new PlaneGeometry(0.92, 0.92), decalMat);
   decal.rotation.x = -Math.PI / 2;
-  decal.position.set(x, 0.006, z);
+  decal.position.set(x, ground + 0.006, z);
   const icon = new Mesh(new PlaneGeometry(0.6, 0.6), iconMat);
-  icon.position.set(x, 1.05, z);
+  icon.position.set(x, ground + 1.05, z);
   return { icon, decal };
 }
 
@@ -124,8 +130,12 @@ export function createWorldView(
   faceTex: Record<AbilityKind, Texture>,
 ): WorldView {
   const ink = makeToon({ color: INK });
-  const white = makeToon({ color: 0xffffff });
   const gapMat = new MeshBasicNodeMaterial({ color: 0x1c1c24, fog: false });
+  const heightSet = new Set<number>();
+  terrain.forEachHeight((_x, _z, h) => {
+    if (h > 0) heightSet.add(h);
+  });
+  const terrainMats = makeTerrainMaterials(heightSet);
 
   terrain.forEachWall((x, z) => {
     const { h, depth } = wallHeight(x, z);
@@ -144,7 +154,8 @@ export function createWorldView(
 
   terrain.forEachHeight((x, z, h) => {
     if (h <= 0) return;
-    const m = new Mesh(new BoxGeometry(1, h, 1), white);
+    const side = terrainMats.side.get(h) ?? terrainMats.top;
+    const m = new Mesh(new BoxGeometry(1, h, 1), [side, side, terrainMats.top, side, side, side]);
     m.position.set(x, h / 2, z);
     m.castShadow = true;
     m.receiveShadow = true;
@@ -156,8 +167,12 @@ export function createWorldView(
   doorSlab.castShadow = true;
   scene.add(doorSlab);
 
-  const shrine = makePickup(SHRINE.x, SHRINE.z, faceTex.fire);
-  const glyph = makePickup(GLYPH.x, GLYPH.z, faceTex.lightning);
+  const shrineH = terrain.height(SHRINE.x, SHRINE.z);
+  const glyphH = terrain.height(GLYPH.x, GLYPH.z);
+  const socketH = terrain.height(SOCKET.x, SOCKET.z);
+  const npcH = terrain.height(NPC.x, NPC.z);
+  const shrine = makePickup(SHRINE.x, SHRINE.z, faceTex.fire, shrineH);
+  const glyph = makePickup(GLYPH.x, GLYPH.z, faceTex.lightning, glyphH);
   scene.add(shrine.decal, shrine.icon, glyph.decal, glyph.icon);
   glyph.decal.visible = false;
   glyph.icon.visible = false;
@@ -173,7 +188,7 @@ export function createWorldView(
     }),
   );
   sock.rotation.x = -Math.PI / 2;
-  sock.position.set(SOCKET.x, 0.006, SOCKET.z);
+  sock.position.set(SOCKET.x, socketH + 0.006, SOCKET.z);
   scene.add(sock);
 
   const cone = toNonIndexedFacets(new ConeGeometry(TURRET_R, TURRET_H, 4));
@@ -181,11 +196,15 @@ export function createWorldView(
   const turretMats: ReturnType<typeof makeToon>[] = [];
   const planes: Mesh[][] = [];
   const spin = new Float64Array(TURRET_COUNT);
+  const turretH = new Float32Array(TURRET_COUNT);
   for (let i = 0; i < TURRET_COUNT; i++) {
     const site = TURRET_SITES[i];
     const mat = makeToon({ color: INK });
     const mesh = new Mesh(cone, mat);
-    mesh.position.set(site?.[0] ?? 0, TURRET_H / 2, site?.[1] ?? 0);
+    const gx = site?.[0] ?? 0;
+    const gz = site?.[1] ?? 0;
+    turretH[i] = terrain.height(gx, gz);
+    mesh.position.set(gx, (turretH[i] ?? 0) + TURRET_H / 2, gz);
     mesh.castShadow = true;
     scene.add(mesh);
     turrets.push(mesh);
@@ -211,11 +230,11 @@ export function createWorldView(
   }
 
   const npc = new Mesh(new OctahedronGeometry(0.46), makeToon({ color: INK }));
-  npc.position.set(NPC.x, 0.72, NPC.z);
+  npc.position.set(NPC.x, npcH + 0.72, NPC.z);
   npc.castShadow = true;
   scene.add(npc);
   const lamp = new PointLight(0xffb469, 0.55, 3.2);
-  lamp.position.set(NPC.x, 1.1, NPC.z);
+  lamp.position.set(NPC.x, npcH + 1.1, NPC.z);
   scene.add(lamp);
 
   const flood = new Mesh(
@@ -249,9 +268,9 @@ export function createWorldView(
       shrine.icon.visible = w.shrineTaken === 0;
       glyph.decal.visible = w.doorOpen !== 0;
       glyph.icon.visible = w.doorOpen !== 0 && w.glyphTaken === 0;
-      shrine.icon.position.y = 1.05 + 0.1 * Math.sin(clock * 2.2);
+      shrine.icon.position.y = shrineH + 1.05 + 0.1 * Math.sin(clock * 2.2);
       shrine.icon.rotation.y = clock * 0.8;
-      glyph.icon.position.y = 1.05 + 0.1 * Math.sin(clock * 2.2);
+      glyph.icon.position.y = glyphH + 1.05 + 0.1 * Math.sin(clock * 2.2);
       glyph.icon.rotation.y = clock * 0.8;
 
       if (w.doorOpen !== 0 && doorSlab.position.y > -1.8) {
@@ -260,7 +279,7 @@ export function createWorldView(
         floodMat.opacity = Math.min(0.9, (floodMat.opacity ?? 0) + dt * 0.4);
       }
 
-      npc.position.y = 0.72 + 0.07 * Math.sin(clock * 1.4);
+      npc.position.y = npcH + 0.72 + 0.07 * Math.sin(clock * 1.4);
       npc.rotation.y = clock * 0.35;
 
       for (let i = 0; i < TURRET_COUNT; i++) {
@@ -286,7 +305,7 @@ export function createWorldView(
         spin[i] = (spin[i] ?? 0) + dt * rate;
         mesh.rotation.y = (spin[i] ?? 0) + Math.PI / 4;
         const tx = TURRET_SITES[i]?.[0] ?? 0;
-        mesh.position.y = TURRET_H / 2 + 0.05 * Math.sin(clock * 2.1 + tx);
+        mesh.position.y = (turretH[i] ?? 0) + TURRET_H / 2 + 0.05 * Math.sin(clock * 2.1 + tx);
 
         const resist = w.turretResist[i] ?? 0;
         const n = w.teleN[i] ?? 0;
@@ -297,7 +316,9 @@ export function createWorldView(
             if (!p) continue;
             if (state === TURRET_STATE_AIM && k < n) {
               p.visible = true;
-              p.position.set(w.teleX[i * 5 + k] ?? 0, 0.01, w.teleZ[i * 5 + k] ?? 0);
+              const cx = w.teleX[i * 5 + k] ?? 0;
+              const cz = w.teleZ[i * 5 + k] ?? 0;
+              p.position.set(cx, terrain.height(cx, cz) + 0.01, cz);
               const kAim = t / TURRET_AIM_TICKS;
               const pulse = 0.14 + 0.3 * kAim + 0.14 * Math.sin(clock * (8 + kAim * 14));
               (p.material as MeshBasicNodeMaterial).opacity = pulse;

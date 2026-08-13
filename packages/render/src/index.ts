@@ -5,5 +5,6 @@ export * from "./orientation-map";
 export * from "./palette";
 export * from "./pose";
 export * from "./squash";
+export * from "./terrain-mat";
 export * from "./toon-ramp";
 export * from "./vfx";
