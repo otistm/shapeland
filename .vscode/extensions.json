@@ -1,0 +1,4 @@
+{
+  "recommendations": ["biomejs.biome"],
+  "unwantedRecommendations": ["geequlim.godot-tools", "godotengine.godot-vscode-plugin"]
+}

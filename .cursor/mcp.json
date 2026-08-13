@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "godot": {
+      "command": "cmd",
+      "args": ["/c", "exit", "1"],
+      "disabled": true
+    }
+  }
+}

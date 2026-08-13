@@ -1,0 +1,28 @@
+---
+description: Shapeland's technology stack and what it is not
+alwaysApply: true
+---
+
+# Stack
+
+Shapeland is an **open world adventure RPG in the browser**.
+
+- pnpm monorepo, TypeScript `strict` everywhere.
+- Packages with hard boundaries: `sim` (pure, deterministic, zero DOM) · `render` · `content` ·
+  `ui` · `platform` · `tools`.
+- Rendering: **WebGPU-first** via Three.js `WebGPURenderer`, automatic WebGL2 fallback. Materials
+  authored in **TSL** so one source compiles to WGSL and GLSL.
+- Testing: Vitest · fast-check · Playwright · golden-image visual regression · WASM provers.
+
+## Not Godot
+
+Shapeland does not use Godot.
+
+- Do not use the Godot MCP server (`user-godot` / `godot`).
+- Do not create `project.godot`, `.gd`, `.tscn`, `.tres`, `.import`, or Godot addons.
+- Do not scaffold scenes, GDScript, or Godot editor plugins.
+
+## Not supported in this renderer
+
+`ShaderMaterial`, `RawShaderMaterial`, and `onBeforeCompile` do not work under `WebGPURenderer`.
+Every custom shader must be TSL from the start.

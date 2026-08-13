@@ -3,6 +3,11 @@ node_modules/
 
 # Build output
 dist/
+coverage/
+*.tsbuildinfo
+
+# pnpm
+.pnpm-store/
 
 # Environment variables
 .env
@@ -26,6 +31,18 @@ Thumbs.db
 # Logs
 *.log
 npm-debug.log*
+pnpm-debug.log*
 
-# Cursor
-.cursor/
+# Playwright
+playwright-report/
+test-results/
+blob-report/
+e2e/.auth/
+
+# Cursor (keep project rules, skills, and MCP config)
+.cursor/*
+!.cursor/rules/
+!.cursor/rules/**
+!.cursor/skills/
+!.cursor/skills/**
+!.cursor/mcp.json

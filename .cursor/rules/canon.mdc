@@ -1,0 +1,43 @@
+---
+description: Shapeland pillars and the invariants no change may break
+alwaysApply: true
+---
+
+# Canon
+
+Full design doc: `docs/DESIGN.md`. Knowledge base: `docs/kb/README.md`.
+
+## Pillars
+
+1. **Movement and ability selection are the same verb.** Rolling to a cell decides what is armed
+   on arrival (the up face). Nothing else selects abilities.
+2. **Geometry is grammar.** A shape's form predicts its behavior with zero tutorialization, and
+   must never lie.
+3. **The world is white; color is memory.** Color is always earned, never decorative.
+4. **Teach through the body.** Rules are learned physically before they are ever named in text.
+
+## Invariants — breaking one is a regression no matter what it adds
+
+- **The quarter-turn invariant.** One quarter-turn per cell. Orientation in sim is an integer
+  `0..23`; roll and pivot are proven table lookups. Quaternions exist only in render.
+- **The sim/render boundary.** Sim is pure and deterministic at fixed 120Hz with seeded RNG. Render
+  reads snapshots and never mutates them. A run is `(seed, inputLog)`.
+- **Socket proofs.** Every seal ships a BFS proof over `(cell × orientation)` asserting
+  `solveMoves > arriveMoves` and `solveMoves ≤ arriveMoves + 6`.
+- **Camera policy.** Camera consumes *linear* roll progress and *resting* ground height, never the
+  eased position. **Traversal never shakes the camera** — shake is impact-only, ≥ 0.05, labelled
+  `// impact:`.
+- **Terrain rules.** Integer heights only. A slope is a staircase. A cliff (|Δh| ≥ 2) is a wall
+  both ways. Never sub-cell height.
+- **Collision data ≠ render data.** Occupancy is a component query; meshes are a render-side
+  mapping.
+- **Zero allocation in per-tick and per-frame hot paths.**
+
+## Working rules
+
+- **Prove, don't spot-check.** If a claim is provable, ship the proof.
+- **Every fix ships a guard encoding the *mechanism* that found it**, not merely the fix.
+- **Replay the exact defect before patching it**, then add that replay to the corpus.
+- **A flaky test is a real bug or an incident assertion.** Never retry-to-green.
+- Determinism hazards: `Math.sin/cos/pow/exp` are not spec-pinned across JS engines. Never call
+  them in `sim`.

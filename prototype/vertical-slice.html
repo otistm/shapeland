@@ -1,0 +1,3447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>TUMBLE — elemental cube</title>
+<style>
+  :root{
+    --ink:#22222a;
+    --line:#dedcd8;
+    --mute:#9a978f;
+    --fire:#ff5a1f;
+    --bolt:#3b46e0;
+    --phys:#3a3a44;
+    --norm:#c2beb8;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%;overflow:hidden;background:#fff;overscroll-behavior:none}
+  body{
+    font-family:ui-sans-serif,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:var(--ink);touch-action:none;
+  }
+  canvas{display:block}
+  #flash{
+    position:fixed;inset:0;pointer-events:none;opacity:0;z-index:5;
+    mix-blend-mode:multiply;
+  }
+  .hud{position:fixed;z-index:10;pointer-events:none;user-select:none}
+
+  #armed{top:max(18px,env(safe-area-inset-top));left:18px}
+  #armed .eyebrow{
+    font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--mute);
+    font-weight:600;margin-bottom:6px;
+  }
+  #armed .row{display:flex;align-items:center;gap:9px}
+  #armed .swatch{
+    width:12px;height:12px;border-radius:3px;background:var(--norm);
+    transition:background .18s ease, transform .18s ease;
+  }
+  #armed .name{
+    font-size:26px;font-weight:650;letter-spacing:.02em;line-height:1;
+    font-variant-ligatures:none;
+  }
+  #armed .sub{
+    font-size:11px;color:var(--mute);margin-top:7px;letter-spacing:.04em;max-width:190px;line-height:1.45
+  }
+  #burn{
+    margin-top:11px;opacity:0;transform:translateY(-3px);
+    transition:opacity .2s ease, transform .2s ease;
+  }
+  #burn.on{opacity:1;transform:none}
+  #burn .bl{
+    font-size:10px;letter-spacing:.22em;text-transform:uppercase;
+    font-weight:700;color:var(--fire);display:block;margin-bottom:5px;
+  }
+  #burn .bar{display:block;width:132px;height:3px;background:#efe9e4;overflow:hidden}
+  #burn .bar i{display:block;height:100%;width:100%;background:var(--fire);transform-origin:left}
+  #burn .tick{
+    font-size:10px;letter-spacing:.12em;color:var(--mute);margin-top:5px;display:block
+  }
+
+  #stick{
+    position:fixed;z-index:11;left:max(26px,env(safe-area-inset-left));
+    bottom:max(30px,env(safe-area-inset-bottom));
+    width:132px;height:132px;touch-action:none;
+  }
+  #dpad{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+  #dpad .frame{fill:none;stroke:var(--line);stroke-width:2.2;stroke-linejoin:round}
+  #knob{
+    position:absolute;left:50%;top:50%;width:52px;height:52px;margin:-26px 0 0 -26px;
+    border-radius:50%;background:#fff;border:1.5px solid var(--ink);
+    transition:border-color .15s ease;
+  }
+  #pivot{
+    position:fixed;z-index:11;right:max(30px,env(safe-area-inset-right));
+    bottom:max(46px,env(safe-area-inset-bottom));
+    width:88px;height:88px;border-radius:50%;background:#fff;
+    border:1.5px solid var(--ink);touch-action:none;cursor:pointer;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+    font-size:9px;letter-spacing:.18em;font-weight:700;color:var(--ink);
+    transition:transform .09s ease, background .12s ease, color .12s ease;
+  }
+  #pivot .gl{font-size:17px;line-height:1;letter-spacing:0}
+  #pivot:active{transform:scale(.93)}
+  #pivot.armed{background:var(--ink);color:#fff}
+
+  .slot .ori{
+    position:absolute;top:4px;left:0;right:0;text-align:center;
+    font-size:8px;letter-spacing:.14em;font-weight:700;color:var(--ink);
+  }
+  .slot.down{border-color:var(--ink);border-width:2.5px}
+
+  /* the touch controls retire when a gamepad appears */
+  #stick, #pivot{ transition:opacity .35s ease, transform .35s ease }
+  body.pad #stick, body.pad #pivot{ opacity:0; pointer-events:none; transform:scale(.9) }
+
+  /* footer hint */
+  #footer{
+    position:fixed;z-index:12;left:0;right:0;
+    bottom:0;padding:14px 18px calc(14px + env(safe-area-inset-bottom));
+    display:flex;align-items:center;justify-content:center;
+    pointer-events:none;
+  }
+  #footer .hint{
+    font-size:10px;letter-spacing:.14em;color:var(--mute);white-space:nowrap;
+  }
+  /* equip lives where the title used to be */
+  #topbar{
+    position:fixed;z-index:12;top:max(16px,env(safe-area-inset-top));
+    right:18px;display:flex;align-items:center;gap:10px;
+  }
+  .tbtn{
+    pointer-events:auto;cursor:pointer;background:#fff;
+    border:1.5px solid var(--ink);border-radius:2px;
+    padding:11px 20px;font-size:11px;letter-spacing:.2em;font-weight:700;
+    color:var(--ink);touch-action:manipulation;position:relative;
+    transition:transform .09s ease;
+  }
+  .tbtn:active{transform:scale(.95)}
+  .tbtn .dot{
+    position:absolute;top:-4px;right:-4px;width:8px;height:8px;border-radius:50%;
+    background:var(--fire);opacity:0;transition:opacity .2s ease;
+  }
+  .tbtn.nudge .dot{opacity:1;animation:pulse 1.8s ease-in-out infinite}
+  @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.6)}}
+
+  #armed .under{font-size:10px;letter-spacing:.16em;color:var(--mute);margin-top:6px;font-weight:700}
+  #pips{display:flex;gap:5px;margin-top:8px}
+  #pips i{width:9px;height:9px;border:1.5px solid var(--ink);border-radius:2px;background:var(--ink);transition:background .2s ease}
+  #pips i.lost{background:transparent}
+  /* location name: large, centred, a rule drawing itself beneath — the
+     Elden Ring region title, translated into this game's ink */
+  #locname{
+    position:fixed;z-index:14;top:30%;left:0;right:0;text-align:center;pointer-events:none;
+    opacity:0;transition:opacity .9s ease;
+  }
+  #locname.show{opacity:1;transition:opacity .7s ease}
+  #locname .t{
+    font-size:21px;letter-spacing:.5em;padding-left:.5em;font-weight:700;
+    color:var(--ink);text-transform:uppercase;
+  }
+  #locname .rule{
+    width:0;height:1.5px;background:var(--ink);margin:12px auto 0;opacity:.7;
+    transition:width 1.1s cubic-bezier(.2,.7,.2,1);
+  }
+  #locname.show .rule{width:170px}
+
+  /* npc dialogue */
+  #speak{
+    position:fixed;z-index:12;left:50%;transform:translateX(-50%);
+    bottom:max(96px,calc(env(safe-area-inset-bottom) + 66px));
+    display:none;
+  }
+  #speak.on{display:block}
+  #speak .btn{
+    display:none;width:17px;height:17px;border-radius:50%;
+    border:1.5px solid var(--ink);margin-right:9px;
+    font-size:9px;line-height:14px;text-align:center;font-weight:700;letter-spacing:0;
+    vertical-align:-3px;
+  }
+  body.pad #speak .btn{display:inline-block}
+  #dialog{
+    position:fixed;z-index:26;left:50%;transform:translateX(-50%);
+    bottom:max(26px,env(safe-area-inset-bottom));
+    width:min(560px,calc(100vw - 32px));
+    background:#fff;border:1.5px solid var(--ink);border-radius:3px;
+    padding:14px 18px 12px;display:none;cursor:pointer;user-select:none;
+  }
+  #dialog.open{display:block}
+  #dialog .who{font-size:9px;letter-spacing:.3em;color:var(--mute);font-weight:700;margin-bottom:7px}
+  #dialog .line{font-size:13px;letter-spacing:.04em;line-height:1.55;color:var(--ink);min-height:2.6em}
+  #dialog .cue{font-size:8px;letter-spacing:.22em;color:var(--mute);text-align:right;margin-top:8px}
+
+  #banner{
+    position:fixed;z-index:14;top:24%;left:0;right:0;text-align:center;pointer-events:none;
+    font-size:15px;letter-spacing:.42em;font-weight:700;color:var(--ink);
+    opacity:0;transition:opacity .8s ease;text-transform:uppercase;
+  }
+  #banner.show{opacity:1}
+
+  /* camera debug */
+  #camdbg{
+    position:fixed;z-index:20;top:max(64px,calc(env(safe-area-inset-top) + 56px));right:18px;
+    width:262px;background:#fff;border:1.5px solid var(--ink);border-radius:3px;
+    padding:12px 14px 14px;display:none;
+    font-size:10px;letter-spacing:.08em;color:var(--ink);
+  }
+  #camdbg.open{display:block}
+  #camdbg h3{font-size:9px;letter-spacing:.24em;margin:0 0 10px;color:var(--mute);font-weight:700}
+  #camdbg .row{display:flex;align-items:center;gap:8px;margin-bottom:7px}
+  #camdbg .row label{width:52px;flex:none;font-weight:700;letter-spacing:.1em}
+  #camdbg .row input{flex:1;min-width:0;accent-color:#22222a}
+  #camdbg .row .v{width:44px;flex:none;text-align:right;font-variant-numeric:tabular-nums;color:var(--mute)}
+  #camdbg pre{
+    margin:11px 0 9px;padding:9px;background:#f7f6f4;border-radius:2px;
+    font-size:9.5px;line-height:1.6;white-space:pre-wrap;word-break:break-word;
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:0;color:#22222a;
+  }
+  #camdbg .acts{display:flex;gap:8px}
+  #camdbg .acts button{
+    flex:1;cursor:pointer;background:#fff;border:1.5px solid var(--ink);border-radius:2px;
+    padding:7px 0;font-size:9px;letter-spacing:.16em;font-weight:700;color:var(--ink);
+  }
+
+  /* equip overlay */
+  #equip{
+    position:fixed;inset:0;z-index:30;display:none;
+    background:rgba(255,255,255,.93);backdrop-filter:blur(3px);
+    overflow:auto;-webkit-overflow-scrolling:touch;
+  }
+  #equip.open{display:block}
+  #equip .sheet{
+    min-height:100%;display:flex;flex-direction:column;
+    padding:max(20px,env(safe-area-inset-top)) 20px calc(20px + env(safe-area-inset-bottom));
+    max-width:560px;margin:0 auto;
+  }
+  #equip .top{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:4px}
+  #equip .top h2{font-size:12px;letter-spacing:.3em;font-weight:700;margin:0}
+  #equip .note{font-size:11px;color:var(--mute);letter-spacing:.03em;line-height:1.5;margin:8px 0 18px}
+
+  .net{
+    display:grid;grid-template-columns:repeat(4,1fr);gap:8px;
+    margin:0 auto 6px;width:100%;max-width:400px;
+  }
+  .slot{
+    position:relative;aspect-ratio:1;border:1.5px solid var(--line);border-radius:6px;
+    background:#fff;display:flex;align-items:center;justify-content:center;
+    background-size:cover;touch-action:none;cursor:grab;
+    transition:border-color .12s ease, transform .12s ease;
+  }
+  .slot .tag{
+    position:absolute;bottom:4px;left:0;right:0;text-align:center;
+    font-size:8px;letter-spacing:.14em;color:var(--mute);font-weight:700;
+  }
+  .slot.hover{border-color:var(--ink);transform:scale(1.06)}
+  .slot.opp{border-color:var(--fire);border-style:dashed}
+  .slot.empty{border-style:dashed}
+
+  .tray{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:18px}
+  .chip{
+    display:flex;align-items:center;gap:9px;padding:8px 14px 8px 8px;
+    border:1.5px solid var(--line);border-radius:40px;background:#fff;
+    touch-action:none;cursor:grab;user-select:none;
+    transition:border-color .12s ease, transform .12s ease;
+  }
+  .chip .sw{width:26px;height:26px;border-radius:5px;background-size:cover;border:1px solid var(--line)}
+  .chip .nm{font-size:11px;letter-spacing:.14em;font-weight:700}
+  .chip.sel{border-color:var(--ink);transform:scale(1.04)}
+  #ghost{
+    position:fixed;z-index:40;width:56px;height:56px;border-radius:8px;
+    background-size:cover;pointer-events:none;opacity:.92;display:none;
+    border:1.5px solid var(--ink);transform:translate(-50%,-50%);
+  }
+  @media (max-width:560px){ #footer .hint{display:none} #armed .sub{display:none} }
+  @media (prefers-reduced-motion: reduce){ #flash{display:none} }
+</style>
+</head>
+<body>
+<div id="flash"></div>
+
+<div class="hud" id="armed">
+  <div class="eyebrow">Face up</div>
+  <div class="row"><span class="swatch" id="sw"></span><span class="name" id="nm">Lightning</span></div>
+  <div class="sub" id="sb">Jump to discharge it on landing.</div>
+  <div class="under" id="underEl">UNDER · NORMAL</div>
+  <div id="pips"><i></i><i></i><i></i></div>
+  <div id="burn"><span class="bl">Burning</span><span class="bar"><i id="bfill"></i></span><span class="tick" id="btick">0 ticks</span></div>
+</div>
+
+<div id="stick">
+  <svg id="dpad" viewBox="0 0 100 100" aria-hidden="true">
+    <polygon class="frame" points="30,0 70,0 70,30 100,30 100,70 70,70 70,100 30,100 30,70 0,70 0,30 30,30"/>
+  </svg>
+  <div id="knob"></div>
+</div>
+<div id="topbar">
+  <button class="tbtn" id="camBtn">CAM</button>
+  <button class="tbtn" id="equipBtn">EQUIP<span class="dot"></span></button>
+</div>
+
+<div id="camdbg">
+  <h3>CAMERA</h3>
+  <div class="row"><label>YAW</label><input type="range" id="cYaw"  min="-180" max="180" step="0.5"><span class="v" id="vYaw"></span></div>
+  <div class="row"><label>PITCH</label><input type="range" id="cPit" min="3" max="85" step="0.5"><span class="v" id="vPit"></span></div>
+  <div class="row"><label>DIST</label><input type="range" id="cDst" min="4" max="45" step="0.1"><span class="v" id="vDst"></span></div>
+  <div class="row"><label>FOV</label><input type="range" id="cFov" min="12" max="80" step="0.5"><span class="v" id="vFov"></span></div>
+  <div class="row"><label>AIM Y</label><input type="range" id="cAim" min="-1" max="3" step="0.05"><span class="v" id="vAim"></span></div>
+  <div class="row"><label>FOG N</label><input type="range" id="cFgN" min="2" max="200" step="1"><span class="v" id="vFgN"></span></div>
+  <div class="row"><label>FOG F</label><input type="range" id="cFgF" min="10" max="400" step="1"><span class="v" id="vFgF"></span></div>
+  <pre id="camOut"></pre>
+  <div class="acts"><button id="camCopy">COPY</button><button id="camReset">RESET</button></div>
+</div>
+
+<button id="pivot"><span class="gl">⟳</span>PIVOT</button>
+
+<div id="footer">
+  <span class="hint" id="hintEl"></span>
+</div>
+<div id="banner"></div>
+<div id="locname"><div class="t"></div><div class="rule"></div></div>
+<button class="tbtn" id="speak"><span class="btn">Y</span>SPEAK</button>
+<div id="dialog"><div class="who">THE KEEPER</div><div class="line"></div><div class="cue" id="dialogCue">TAP TO CONTINUE</div></div>
+
+<div id="equip">
+  <div class="sheet">
+    <div class="top"><h2>EQUIP</h2><button class="tbtn" id="equipDone">DONE</button></div>
+    <p class="note" id="equipNote"></p>
+    <div class="net" id="net"></div>
+    <p class="note" style="text-align:center;margin:14px 0 0">
+      Drag an ability onto a face. Drag between faces to swap.<br>
+      Opposite faces can never come up in the same roll.
+    </p>
+    <div class="tray" id="tray"></div>
+  </div>
+</div>
+<div id="ghost"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* ============================================================================
+   TUMBLE — a white cube in a white room.
+   Disney principles: shared squash spring, anticipation crouch, slow-in/fast-
+   out roll ease, pivot-edge arcs, follow through, overlapping wobble, staging
+   in a white void, exaggerated impacts, secondary dust/light/camera.
+
+   VFX pass 2 — realism on a white stage:
+     · ACES tone mapping, soft shadows, physical light falloff (decay=2)
+     · pooled dynamic point lights: fire flickers 1/f-style, lightning strobes,
+       impacts thump — colored light washing the white floor sells the hit
+     · lightning is a tapered camera-facing ribbon (white core -> blue haze)
+       that RESTRIKES twice, with ground arcs, not a 1px GL line
+     · fire spawns a fireball shell + white-hot embers that cool through
+       orange to smoke, plus a rising plume and an irregular charred scorch
+     · physical gets a rolling dust shockwave, a crater decal, chunkier rubble,
+       hit-stop (70ms at 12% speed) and a vertical camera kick
+     · particles color-grade over their lifetime; dust and glow textures are
+       painted blotches, not perfect circles
+     · additive blending is useless over a white floor, so all "glow" is done
+       with saturated colour, layered opacity, and real light on the ground
+============================================================================ */
+
+// ---------------------------------------------------------------- constants
+const ROLL_DUR   = 0.19;
+const CROUCH_DUR = 0.14;
+const JUMP_V0    = 7.6;
+const GRAV       = 25.0;
+const HANG_ZONE  = 2.3;
+const HANG_MUL   = 0.62;
+const LEAP_CELLS = 2;       // a directional jump clears two cells
+const TUCK_DUR  = 0.34;     // deliberately slower than a roll: it costs tempo
+const TUCK_LIFT = 0.30;
+const JUMP_BUFFER = 0.20;   // press jump this early and it still fires on landing
+
+// flight time is fixed, so predict it once and drive the leap's horizontal
+// travel from it; the vertical is still the real integrator, hang time and all
+const FLIGHT_DUR = (() => {
+  let y = 0.5, vy = JUMP_V0, t = 0;
+  const h = 1/960;
+  while (t < 4){
+    const g = (Math.abs(vy) < HANG_ZONE) ? GRAV*HANG_MUL : GRAV;
+    vy -= g*h; y += vy*h; t += h;
+    if (y <= 0.5 && vy < 0) break;
+  }
+  return t;
+})();
+const smoothstep01 = t => t*t*(3 - 2*t);
+
+const ABILITY = {
+  fire:      { label:'Fire',      color:0xff5a1f, css:'#ff5a1f', line:'Scorches the ground where it lands.' },
+  lightning: { label:'Lightning', color:0x3b46e0, css:'#3b46e0', line:'Calls a bolt down onto itself.' },
+  physical:  { label:'Physical',  color:0x3a3a44, css:'#3a3a44', line:'Cracks the floor and throws rubble.' },
+  normal:    { label:'Normal',    color:0xc2beb8, css:'#c2beb8', line:'Nothing but a puff of dust.' },
+};
+// Mutable: the cube ships blank and the player equips it. Index order matches
+// BoxGeometry material groups: +X, -X, +Y, -Y, +Z, -Z.
+let faceAbility = ['normal','normal','normal','normal','normal','normal'];
+const FACE_LABEL = ['RIGHT','LEFT','TOP','BOTTOM','FRONT','BACK'];
+const FACE_OPPOSITE = [1, 0, 3, 2, 5, 4];   // a roll can never bring these up together
+const FACE_NORMAL = [
+  new THREE.Vector3( 1,0,0), new THREE.Vector3(-1,0,0),
+  new THREE.Vector3(0, 1,0), new THREE.Vector3(0,-1,0),
+  new THREE.Vector3(0,0, 1), new THREE.Vector3(0,0,-1),
+];
+
+// ---------------------------------------------------------------- boot
+const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:false });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.06;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xffffff);
+scene.fog = new THREE.Fog(0xffffff, 42, 110);  // must stay clear of the camera distance
+
+// 0 deg yaw, 27 deg pitch, 42 deg FOV: a straight-on view down -Z. Scaling the
+// offset uniformly zooms without disturbing either angle. Note that at yaw 0
+// the world axes line up with the screen axes, which makes the four cardinal
+// stick directions perfectly unambiguous and pure diagonals a dead heat.
+const camera = new THREE.PerspectiveCamera(42, innerWidth/innerHeight, 0.1, 200);
+const CAM_OFFSET = new THREE.Vector3(0.0, 8.0, 15.45);
+const VIEW_DIR = CAM_OFFSET.clone().normalize();   // rebuilt if the camera moves
+let camLookY = 0.55;   // height the camera aims at, just above the cube's middle
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+// ---------------------------------------------------------------- lighting
+scene.add(new THREE.HemisphereLight(0xffffff, 0xe9e7f2, 0.8));
+const sun = new THREE.DirectionalLight(0xfffdf6, 0.7);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.radius = 1.8;   // each texel now covers more world, so blur less
+sun.shadow.bias = -0.0012;
+/*  The shadow frustum follows the cube, so it must be wide enough to contain
+    every shadow-caster that is ON SCREEN. At ±8 it was narrower than the view
+    (13.4 units tall, and far more ground than that at this pitch), so the
+    sentries' and walls' shadows were sliced off at the frustum edge and
+    landed as hard-edged rectangles across the scene. Sized to the view now.  */
+const SHADOW_EXTENT = 22;
+const sc = sun.shadow.camera;
+sc.left = -SHADOW_EXTENT; sc.right = SHADOW_EXTENT;
+sc.top = SHADOW_EXTENT; sc.bottom = -SHADOW_EXTENT;
+sc.near = 1; sc.far = 70;
+scene.add(sun);
+scene.add(sun.target);
+
+/* ===================== TOON SHADING, game-wide ===========================
+   One shared gradient ramp drives every lit surface. MeshToonMaterial with a
+   NearestFilter DataTexture quantises the light response into flat bands —
+   the same idiom as the painted glyphs and the SDF flame: areas of flat tone
+   meeting at a clean edge, instead of a continuous falloff.
+
+   Three bands, deliberately high-key so the world stays white:
+     shadow 0.62 · half-tone 0.84 · lit 1.0
+   With three nearest-filtered texels the band edges land at dotNL = ±1/3.
+   Under the key light (screen-left, high) the cube's top and sun-side faces
+   sit in the lit band, the camera-facing face in the half-tone, and the far
+   side in shadow — a readable three-value drawing of every object. The
+   hemisphere ambient stays continuous, which keeps the white world airy.
+   Emissive (the burn glow, the face telegraph) bypasses the ramp by design:
+   things that EMIT light should not be shaded like things that receive it. */
+const TOON_BANDS = [0.62, 0.84, 1.0];
+const toonRamp = (() => {
+  const n = TOON_BANDS.length;
+  const data = new Uint8Array(n*3);
+  TOON_BANDS.forEach((v, i) => { data[i*3] = data[i*3+1] = data[i*3+2] = Math.round(v*255); });
+  const t = new THREE.DataTexture(data, n, 1, THREE.RGBFormat);
+  t.minFilter = t.magFilter = THREE.NearestFilter;   // hard band edges
+  t.generateMipmaps = false;
+  t.needsUpdate = true;
+  return t;
+})();
+// drop-in replacement for MeshStandardMaterial across the game
+function makeToon(opts){
+  const o = { ...opts };
+  delete o.roughness; delete o.metalness;            // meaningless under toon
+  return new THREE.MeshToonMaterial({ gradientMap: toonRamp, ...o });
+}
+
+// pooled effect lights — colored light on the white floor is the realism lever
+const fxLights = [];
+for (let i=0;i<4;i++){
+  const L = new THREE.PointLight(0xffffff, 0, 12, 2);
+  L.visible = false;
+  scene.add(L);
+  fxLights.push({ L, live:false, t:0, dur:1, peak:1, kind:'thump', seed:0 });
+}
+function lightBurst(pos, color, peak, dur, kind, y){
+  const f = fxLights.find(x => !x.live) || fxLights[0];
+  f.live = true; f.t = 0; f.dur = dur; f.peak = peak; f.kind = kind;
+  f.seed = Math.random()*100;
+  f.L.color.setHex(color);
+  f.L.position.set(pos.x, y === undefined ? 1.1 : y, pos.z);
+  f.L.visible = true;
+  return f;
+}
+function stepLights(dt, t){
+  for (const f of fxLights){
+    if (!f.live) continue;
+    f.t += dt;
+    const k = f.t/f.dur;
+    if (k >= 1){ f.live = false; f.L.visible = false; f.L.intensity = 0; continue; }
+    const decay = Math.pow(1-k, 1.7);
+    let env = decay;
+    if (f.kind === 'fire'){
+      // layered flicker: real flames gutter across several frequencies
+      const n = 0.74
+        + 0.16*Math.sin((t+f.seed)*29.0)
+        + 0.10*Math.sin((t+f.seed)*47.3 + 1.3)
+        + 0.07*Math.sin((t+f.seed)*11.7 + 3.9);
+      env = decay * n;
+      f.L.position.y = 0.9 + 0.13*Math.sin((t+f.seed)*21.0);
+    }
+    else if (f.kind === 'strobe'){
+      // discharge chatter: a hard random gate that dies out
+      const gate = Math.sin((t+f.seed)*167.0) > -0.3 ? 1 : 0.1;
+      env = decay * gate;
+    }
+    // 'thump' = plain smooth decay
+    f.L.intensity = f.peak * Math.max(0, env);
+  }
+}
+
+// ---------------------------------------------------------------- ground
+// One tile spans 4 world units; lines sit on half-integers, which is exactly
+// where the cube's cell boundaries fall, so a roll always crosses one line.
+const GRID_PERIOD = 4;
+function gridTexture(){
+  const PX = 128;                       // pixels per world unit
+  const S = PX*GRID_PERIOD;
+  const c = document.createElement('canvas'); c.width = c.height = S;
+  const g = c.getContext('2d');
+  g.fillStyle = '#ffffff'; g.fillRect(0,0,S,S);
+  g.lineCap = 'butt';
+  for (let i=0;i<GRID_PERIOD;i++){
+    const at = (i + 0.5) * PX;          // half-integer world coordinate
+    const major = (i === 0);
+    g.strokeStyle = major ? 'rgba(132,148,196,0.78)' : 'rgba(146,161,205,0.48)';
+    g.lineWidth = major ? 6 : 3.5;
+    g.beginPath(); g.moveTo(at, 0); g.lineTo(at, S); g.stroke();
+    g.beginPath(); g.moveTo(0, at); g.lineTo(S, at); g.stroke();
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(320/GRID_PERIOD, 320/GRID_PERIOD);
+  t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  return t;
+}
+const ground = new THREE.Mesh(
+  new THREE.PlaneGeometry(320, 320),
+  makeToon({ color:0xffffff, map:gridTexture() })
+);
+ground.rotation.x = -Math.PI/2;
+ground.receiveShadow = true;
+scene.add(ground);
+
+// ---------------------------------------------------------------- the cube
+function faceCanvas(kind){
+  const S = 256;
+  const c = document.createElement('canvas'); c.width = c.height = S;
+  const g = c.getContext('2d');
+  /*  The cube is the only saturated mass in a white room, so it carries its
+      own contrast instead of needing an outline. The toon ramp MULTIPLIES
+      this base, so the shadow band lands at 0.62x — the value is chosen so
+      even that darkest band stays a readable blue rather than going black. */
+  g.fillStyle = '#4a7fd4'; g.fillRect(0,0,S,S);
+  g.lineJoin = 'round'; g.lineCap = 'round';
+
+  /*  On a saturated base the glyphs need their own separation: Fire's orange
+      sits at almost exactly the blue's luminance and would vibrate. Each
+      shape is stroked with a light halo before it is filled, so the ability
+      colours stay EXACTLY as authored — the same values the VFX and HUD use
+      — while still reading cleanly against the body.                       */
+  const halo = (path, fill) => {
+    path();
+    g.strokeStyle = 'rgba(238,244,252,0.95)'; g.lineWidth = 13;
+    g.stroke();
+    path();
+    g.fillStyle = fill; g.fill();
+  };
+
+  if (kind === 'fire'){
+    halo(() => {
+      g.beginPath();
+      g.moveTo(128, 56);
+      g.bezierCurveTo(184, 106, 190, 144, 170, 172);
+      g.bezierCurveTo(159, 190, 142, 200, 128, 200);
+      g.bezierCurveTo(114, 200, 97, 190, 86, 172);
+      g.bezierCurveTo(66, 144, 72, 106, 128, 56);
+      g.closePath();
+    }, '#ff5a1f');
+    g.fillStyle = '#ffbe4d';
+    g.beginPath();
+    g.moveTo(128, 118);
+    g.bezierCurveTo(154, 142, 154, 160, 143, 174);
+    g.bezierCurveTo(137, 182, 132, 186, 128, 186);
+    g.bezierCurveTo(124, 186, 119, 182, 113, 174);
+    g.bezierCurveTo(102, 160, 102, 142, 128, 118);
+    g.closePath(); g.fill();
+  }
+  else if (kind === 'lightning'){
+    halo(() => {
+      g.beginPath();
+      g.moveTo(150, 50); g.lineTo(92, 142); g.lineTo(124, 142);
+      g.lineTo(106, 208); g.lineTo(168, 112); g.lineTo(134, 112);
+      g.closePath();
+    }, '#3b46e0');
+    g.fillStyle = '#ffd23f';
+    g.beginPath();
+    g.moveTo(146, 74); g.lineTo(110, 134); g.lineTo(124, 134);
+    g.lineTo(120, 168); g.lineTo(140, 122); g.lineTo(126, 122);
+    g.closePath(); g.fill();
+  }
+  else if (kind === 'physical'){
+    halo(() => {
+      g.beginPath();
+      for (let i=0;i<16;i++){
+        const a = (i/16)*Math.PI*2 - Math.PI/2;
+        const r = (i%2===0) ? 84 : 40;
+        const x = 128 + Math.cos(a)*r, y = 128 + Math.sin(a)*r;
+        i === 0 ? g.moveTo(x,y) : g.lineTo(x,y);
+      }
+      g.closePath();
+    }, '#3a3a44');
+    g.fillStyle = '#eef4fc';
+    g.beginPath(); g.arc(128,128,17,0,Math.PI*2); g.fill();
+  }
+  else {
+    // Normal is an absence, so it is simply the body's own light: a hollow
+    // ring in the same family as the cube, needing no halo
+    g.strokeStyle = 'rgba(238,244,252,0.9)'; g.lineWidth = 9;
+    g.beginPath(); g.arc(128,128,50,0,Math.PI*2); g.stroke();
+    g.fillStyle = 'rgba(238,244,252,0.9)';
+    g.beginPath(); g.arc(128,128,9,0,Math.PI*2); g.fill();
+  }
+  return c;
+}
+// one canvas + texture per ability, shared by the cube and the equip screen so
+// the two can never drift apart
+const FACE_CANVAS = {}, FACE_TEX = {}, FACE_URL = {};
+for (const kind of ['fire','lightning','physical','normal']){
+  const c = faceCanvas(kind);
+  FACE_CANVAS[kind] = c;
+  const t = new THREE.CanvasTexture(c);
+  t.anisotropy = 8;
+  FACE_TEX[kind] = t;
+  FACE_URL[kind] = c.toDataURL();
+}
+function roundRect(g,x,y,w,h,r){
+  g.beginPath();
+  g.moveTo(x+r,y); g.lineTo(x+w-r,y); g.quadraticCurveTo(x+w,y,x+w,y+r);
+  g.lineTo(x+w,y+h-r); g.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  g.lineTo(x+r,y+h); g.quadraticCurveTo(x,y+h,x,y+h-r);
+  g.lineTo(x,y+r); g.quadraticCurveTo(x,y,x+r,y);
+  g.closePath();
+}
+
+function roundedBox(size, radius, seg){
+  const geo = new THREE.BoxGeometry(size, size, size, seg, seg, seg);
+  const pos = geo.attributes.position;
+  const h = size/2, inner = h - radius;
+  const v = new THREE.Vector3(), core = new THREE.Vector3(), dir = new THREE.Vector3();
+  for (let i=0;i<pos.count;i++){
+    v.fromBufferAttribute(pos, i);
+    core.set(
+      Math.max(-inner, Math.min(inner, v.x)),
+      Math.max(-inner, Math.min(inner, v.y)),
+      Math.max(-inner, Math.min(inner, v.z))
+    );
+    dir.subVectors(v, core);
+    const len = dir.length();
+    if (len > 1e-6){
+      dir.multiplyScalar(radius/len);
+      pos.setXYZ(i, core.x+dir.x, core.y+dir.y, core.z+dir.z);
+    }
+  }
+  geo.computeVertexNormals();
+  return geo;
+}
+
+const cubeMats = faceAbility.map(kind => makeToon({
+  map: FACE_TEX[kind], color:0xffffff,
+  emissive: new THREE.Color(0x000000), emissiveIntensity: 1,
+}));
+function applyFaces(){
+  for (let i=0;i<6;i++){
+    if (cubeMats[i].map !== FACE_TEX[faceAbility[i]]){
+      cubeMats[i].map = FACE_TEX[faceAbility[i]];
+      cubeMats[i].needsUpdate = true;
+    }
+  }
+}
+const cube = new THREE.Mesh(roundedBox(1, 0.085, 8), cubeMats);
+cube.castShadow = true;
+const cubeRig = new THREE.Group();
+cubeRig.add(cube);
+scene.add(cubeRig);
+
+// telegraph disc — soft radial texture, not a hard circle
+function radialTexture(stops){
+  const c = document.createElement('canvas'); c.width = c.height = 128;
+  const g = c.getContext('2d');
+  const grd = g.createRadialGradient(64,64,0,64,64,64);
+  for (const [o, col] of stops) grd.addColorStop(o, col);
+  g.fillStyle = grd; g.fillRect(0,0,128,128);
+  return new THREE.CanvasTexture(c);
+}
+const glow = new THREE.Mesh(
+  new THREE.PlaneGeometry(1.9, 1.9),
+  new THREE.MeshBasicMaterial({
+    map: radialTexture([[0,'rgba(255,255,255,0.9)'],[0.55,'rgba(255,255,255,0.35)'],[1,'rgba(255,255,255,0)']]),
+    color:0xffffff, transparent:true, opacity:0, depthWrite:false
+  })
+);
+glow.rotation.x = -Math.PI/2;
+glow.position.y = 0.012;
+scene.add(glow);
+
+// ---------------------------------------------------------------- fx: burning cube
+/*  Three pieces, so the fire reads as COMING FROM the cube and SPREADING to
+    the ground, not as a bonfire the cube stands in:
+      SHELL — flame climbing the cube's own geometry, its leading edge a
+        scalloped line of tongues driven by sines around the cube's axis.
+      PLUMES — six SDF flame quads anchored at the cube's TOP, so the column
+        pours off the burning body instead of rising out of the floor.
+      AOE — a ground aura that lags behind the cube: a petal-edged ring stroke
+        at the damage radius over a faint tint disc, ringed by eight small
+        ground-tuft flames, with a clean pulse stroke sweeping outward on each
+        damage tick. The tick's scorch, embers and ring all live at the AOE
+        radius, so the area of effect is legible as an area.                 */
+const AOE_R = 1.55;                                // damage radius, world units
+const FLAME_VERT = `
+  varying vec2 vUv;
+  void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
+
+/*  Shared drawing kit. Everything elemental is built from signed distance
+    fields and resolved with crisp(), a derivative-width edge that gives the
+    same clean anti-aliased silhouette the cube's own painted glyphs have.
+    No noise textures anywhere: shapes are made of circles and capsules,
+    animated by smooth sines, so they stay rounded and deliberate the way the
+    rest of the world is. Palette is lifted straight off the face decals.   */
+const GFX_LIB = `
+  float hash21(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123); }
+  float vnoise(vec2 p){
+    vec2 i = floor(p), f = fract(p);
+    vec2 u = f*f*(3.0 - 2.0*f);
+    return mix(mix(hash21(i), hash21(i+vec2(1.0,0.0)), u.x),
+               mix(hash21(i+vec2(0.0,1.0)), hash21(i+vec2(1.0,1.0)), u.x), u.y);
+  }
+  float fbm(vec2 p){
+    float v = 0.0, a = 0.55;
+    for (int i = 0; i < 4; i++){ v += a*vnoise(p); p *= 2.07; a *= 0.5; }
+    return v;
+  }
+  // continuous blackbody-style ramp: white-hot -> yellow -> orange -> red ->
+  // ember -> smoke grey. Saturated, never pastel, so it reads on white.
+  vec3 fireRamp(float T){
+    vec3 c = mix(vec3(0.54,0.52,0.50), vec3(0.55,0.13,0.020), smoothstep(0.04, 0.18, T));
+    c = mix(c, vec3(0.90,0.26,0.04), smoothstep(0.18, 0.38, T));
+    c = mix(c, vec3(1.00,0.55,0.08), smoothstep(0.38, 0.62, T));
+    c = mix(c, vec3(1.00,0.83,0.35), smoothstep(0.62, 0.82, T));
+    c = mix(c, vec3(1.00,0.97,0.88), smoothstep(0.82, 0.97, T));
+    return c;
+  }
+`;
+
+
+/*  FLAME — particles, moved by fire dynamics rather than decoration.
+    Each particle is a flat drawn lick (SDF teardrop, crisp edge, flat bands
+    keyed to its temperature) so the LOOK stays in this world's idiom, but
+    what it DOES is taken from how real diffusion flames behave:
+
+      BUOYANCY    hot gas accelerates upward under the density deficit, so
+                  particles speed up as they leave the source and slow as
+                  they cool. Nothing moves at a constant authored speed.
+      PUFFING     real pool fires shed a toroidal vortex at f = 1.5/sqrt(D)
+                  Hz. Emission pulses on that clock, which is what produces
+                  the rising bulges that read unmistakably as fire.
+      NECKING     the column contracts just above the base where air is
+                  entrained, then bulges where the vortex rolls up.
+      ENTRAINMENT above the neck the plume widens roughly linearly with
+                  height (measured slope ~0.17, the real plume value).
+      COOLING     temperature decays exponentially; it drives colour, size,
+                  buoyancy and lifetime together, so particles hand off from
+                  flame to smoke on their own instead of being told to.
+      SWIRL       each puff cohort carries a counter-rotating tangential
+                  velocity that spins down.
+    Licks also stretch and align to their own velocity, so the shapes lean
+    into the motion the way flame tongues do.                              */
+const FIRE_MAX = 340;
+const FIRE = {
+  D: 1.0,                       // source width -> sets the puffing frequency
+  buoy: 10.0, tau: 0.36, drag: 1.2,
+  entrain: 0.16, neckAmt: 0.45, neckH: 0.22, neckW: 0.16, radK: 6.0,
+  swirl0: 2.2, swirlTau: 0.5,
+  v0: 0.6, r0: 0.30, maxAge: 1.35,
+  baseRate: 64, puffN: 18,
+};
+FIRE.puffHz = 1.5/Math.sqrt(FIRE.D);
+
+/*  Each particle is a small piece of flame: a disc eroded by animated fbm so
+    its edge tears and dissolves, coloured by ITS OWN temperature on a
+    continuous blackbody ramp. Hot particles are dense and bright; as they
+    cool the erosion eats them from the rim inward and the ramp walks down
+    through orange, red, ember and finally smoke grey. Orientation and
+    stretch still follow the particle's velocity, so the physics reads.    */
+const FIRE_FRAG = `
+  uniform float uTime;
+  varying float vT, vA, vPhi, vStretch, vSeed;
+  ${GFX_LIB}
+  void main(){
+    vec2 q = vec2(gl_PointCoord.x - 0.5, 0.5 - gl_PointCoord.y);
+    float c = cos(vPhi), s = sin(vPhi);
+    q = vec2(q.x*c + q.y*s, -q.x*s + q.y*c);
+    q.y /= vStretch;
+    float r = length(q)*2.0;
+    // erosion field advects upward through the sprite and bites harder as it cools
+    float n = fbm(q*3.1 + vec2(vSeed*13.7, vSeed*7.1 - uTime*1.9));
+    // cooling both shrinks the body and raises the tear threshold, so a dying
+    // particle breaks into ragged remnants instead of politely fading
+    float d = r - (0.90 - 0.40*(1.0 - vT)) + (0.52 - n)*(0.60 + 0.85*(1.0 - vT));
+    float a = (1.0 - smoothstep(-0.22, 0.10, d)) * vA;
+    if (a < 0.012) discard;
+    // interior temperature rises toward the sprite centre; smoke stays flat
+    float Tlocal = vT * (1.0 + 0.55*(1.0 - r)*step(0.16, vT));
+    vec3 col = fireRamp(clamp(Tlocal, 0.0, 1.0));
+    gl_FragColor = vec4(col, a * (vT > 0.16 ? 0.92 : 0.40));
+  }`;
+
+
+const fireGeo = new THREE.BufferGeometry();
+for (const [name, size] of [['position',3],['aSize',1],['aPhi',1],['aStretch',1],['aT',1],['aA',1],['aSeed',1]])
+  fireGeo.setAttribute(name, new THREE.BufferAttribute(new Float32Array(FIRE_MAX*size), size));
+fireGeo.setDrawRange(0, 0);
+const fireMat = new THREE.ShaderMaterial({
+  uniforms:{ uTime:{ value:0 } },
+  transparent:true, depthWrite:false,
+  extensions:{ derivatives:true },
+  vertexShader:`
+    attribute float aSize, aPhi, aStretch, aT, aA, aSeed;
+    varying float vT, vA, vPhi, vStretch, vSeed;
+    void main(){
+      vT = aT; vA = aA; vPhi = aPhi; vStretch = aStretch; vSeed = aSeed;
+      vec4 mv = modelViewMatrix * vec4(position, 1.0);
+      gl_PointSize = aSize * (340.0 / max(0.001, -mv.z));
+      gl_Position = projectionMatrix * mv;
+    }`,
+  fragmentShader: FIRE_FRAG,
+});
+const firePoints = new THREE.Points(fireGeo, fireMat);
+firePoints.frustumCulled = false;
+firePoints.renderOrder = 3;
+scene.add(firePoints);
+
+// screen basis for aligning licks to their motion (camera never rotates)
+const SCR_RIGHT = new THREE.Vector3().crossVectors(new THREE.Vector3(0,1,0), VIEW_DIR).normalize();
+const SCR_UP    = new THREE.Vector3().crossVectors(VIEW_DIR, SCR_RIGHT).normalize();
+
+const fireParts = [];
+let puffPhase = 0, baseAcc = 0, swirlSign = 1;
+
+function spawnFire(ax, az, y, scale, cohort){
+  if (fireParts.length >= FIRE_MAX) return;
+  const th = Math.random()*Math.PI*2;
+  fireParts.push({
+    ax, az, y, y0: y, th,
+    r0: FIRE.r0*scale*(0.6 + Math.random()*0.5),
+    r:  FIRE.r0*scale*(0.75 + Math.random()*0.4),
+    vy: FIRE.v0*(0.7 + Math.random()*0.6),
+    T: 1, age: 0, cohort, scale,
+    swirl: swirlSign*FIRE.swirl0*(0.6 + Math.random()*0.8),
+    size: (0.34 + Math.random()*0.22)*scale,
+    seed: Math.random()*10,
+    phi: 0, stretch: 1,
+    px: 0, py: 0, pz: 0,
+  });
+}
+
+function stepFire(dt, bi, baseY, ax, az, ringPts){
+  // ---- emission on the puffing clock
+  if (bi > 0.05){
+    baseAcc += dt*FIRE.baseRate*bi;
+    while (baseAcc >= 1){ baseAcc -= 1; spawnFire(ax, az, baseY + 0.5, 1, 0); }
+    puffPhase += dt*FIRE.puffHz;
+    if (puffPhase >= 1){
+      puffPhase -= 1;
+      swirlSign *= -1;                       // counter-rotating successive puffs
+      const n = Math.round(FIRE.puffN*bi);
+      for (let i=0;i<n;i++) spawnFire(ax, az, baseY + 0.45, 1, 1);
+      // the ground ring puffs on the same clock, a beat later and smaller
+      if (ringPts) for (const rp of ringPts) if (Math.random() < 0.75)
+        spawnFire(rp.x, rp.z, 0.04, 0.5, 1);
+    }
+  }
+  // ---- integrate
+  const pa = fireGeo.attributes;
+  for (let i=fireParts.length-1;i>=0;i--){
+    const q = fireParts[i];
+    q.age += dt;
+    q.T -= q.T*dt/FIRE.tau;
+    const prevY = q.y, prevR = q.r, prevTh = q.th;
+
+    q.vy += FIRE.buoy*q.T*dt;                // buoyant acceleration
+    q.vy -= FIRE.drag*q.vy*dt;
+    // height above the point of emission: the neck and the entrainment cone
+    // are both measured from where the gas leaves the source, not from the floor
+    const hh = Math.max(0, q.y - q.y0);
+    const neck = 1 - FIRE.neckAmt*Math.exp(-Math.pow((hh - FIRE.neckH)/FIRE.neckW, 2));
+    const targetR = q.r0*neck + FIRE.entrain*Math.max(0, hh - FIRE.neckH);
+    q.r += (targetR - q.r)*Math.min(1, dt*FIRE.radK);
+    q.th += q.swirl*dt;
+    q.swirl -= q.swirl*dt/FIRE.swirlTau;
+    q.y += q.vy*dt;
+
+    if (q.T < 0.05 || q.age > FIRE.maxAge){ fireParts.splice(i, 1); continue; }
+
+    q.px = q.ax + Math.cos(q.th)*q.r;
+    q.py = q.y;
+    q.pz = q.az + Math.sin(q.th)*q.r;
+    // velocity in screen space -> lick orientation and elongation
+    const vx = (q.px - (q.ax + Math.cos(prevTh)*prevR))/Math.max(dt,1e-4);
+    const vz = (q.pz - (q.az + Math.sin(prevTh)*prevR))/Math.max(dt,1e-4);
+    const vyv = (q.y - prevY)/Math.max(dt,1e-4);
+    const sx = vx*SCR_RIGHT.x + vz*SCR_RIGHT.z;
+    const sy = vx*SCR_UP.x + vyv*SCR_UP.y + vz*SCR_UP.z;
+    q.phi = Math.atan2(sx, Math.max(1e-4, sy));       // 0 = pointing screen-up
+    const spd = Math.hypot(sx, sy);
+    q.stretch = 1 + Math.min(1.15, spd*0.22);
+    q.size += dt*0.30*q.scale;                        // expansion as it entrains
+  }
+  // ---- upload
+  let n = 0;
+  for (const q of fireParts){
+    const fade = q.T > 0.16
+      ? Math.min(1, q.T*3.2)
+      : Math.max(0, 0.5*(q.T/0.16))*Math.max(0, 1 - q.age/FIRE.maxAge);
+    pa.position.setXYZ(n, q.px, q.py, q.pz);
+    pa.aSize.setX(n, q.size);
+    pa.aPhi.setX(n, q.phi);
+    pa.aStretch.setX(n, q.stretch);
+    pa.aT.setX(n, q.T);
+    pa.aA.setX(n, fade*Math.min(1, bi*1.6 + 0.25));
+    pa.aSeed.setX(n, q.seed);
+    n++;
+  }
+  fireGeo.setDrawRange(0, n);
+  for (const k of ['position','aSize','aPhi','aStretch','aT','aA','aSeed']) pa[k].needsUpdate = true;
+  firePoints.visible = n > 0;
+}
+
+/*  SHELL — the cube's surface burns in world space: fbm advected up world-Y
+    even as the body tumbles, biting hardest at the top, on the same
+    blackbody ramp as the particles so skin and plume read as one fire.    */
+const SHELL_FRAG = `
+  uniform float uTime, uIntensity, uBaseY;
+  varying vec3 vW;
+  ${GFX_LIB}
+  void main(){
+    float h = clamp((vW.y - uBaseY)/1.16, 0.0, 1.0);
+    float n  = fbm(vec2(vW.x*2.7 + vW.z*2.0,        vW.y*2.3 - uTime*2.7));
+    float n2 = fbm(vec2(vW.z*3.2 - vW.x*1.5 + 7.3,  vW.y*2.9 - uTime*3.5));
+    float d = (n*0.75 + n2*0.45) - (1.0 - h)*0.55 - 0.20 - (1.0 - uIntensity)*0.8;
+    d = clamp(d, 0.0, 1.0);
+    if (d < 0.02) discard;
+    vec3 col = fireRamp(0.30 + d*0.66);
+    float a = smoothstep(0.02, 0.20, d) * 0.88 * uIntensity;
+    gl_FragColor = vec4(col, a);
+  }`;
+const shellMat = new THREE.ShaderMaterial({
+  uniforms:{ uTime:{ value:0 }, uIntensity:{ value:0 }, uBaseY:{ value:0 } },
+  vertexShader:`
+    varying vec3 vW;
+    void main(){
+      vW = (modelMatrix * vec4(position, 1.0)).xyz;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }`,
+  fragmentShader: SHELL_FRAG,
+  transparent:true, depthWrite:false,
+  extensions:{ derivatives:true },
+});
+const fireShell = new THREE.Mesh(roundedBox(1.16, 0.1, 8), shellMat);
+fireShell.visible = false;
+fireShell.renderOrder = 3;
+cube.add(fireShell);                               // rolls and squashes with the cube
+
+/*  AOE — burning ground: an inner heat shimmer and a flame ring torn by
+    scrolling noise at the damage radius, with the tick pulse sweeping
+    outward through it. Coloured on the shared blackbody ramp.             */
+const AOE_FRAG = `
+  uniform float uTime, uIntensity, uPulse;
+  varying vec2 vUv;
+  ${GFX_LIB}
+  void main(){
+    vec2 p = (vUv - 0.5)*2.0;
+    float r = length(p);
+    float n = fbm(p*4.2 + vec2(0.0, -uTime*1.0));
+    float rr = r + (n - 0.5)*0.30;
+    float band = exp(-pow((rr - 0.80)*7.0, 2.0));
+    float glow = pow(max(0.0, 1.0 - rr), 2.0)*0.5;
+    float flick = 0.82 + 0.18*sin(uTime*15.0 + r*8.0);
+    float pulseRing = exp(-pow((r - (1.0 - uPulse)*0.95)*10.0, 2.0)) * uPulse * 1.25;
+    float v = (band*0.95 + glow)*flick + pulseRing;
+    float a = clamp(v, 0.0, 1.0) * 0.8 * uIntensity * (1.0 - smoothstep(0.85, 1.0, r));
+    if (a < 0.012) discard;
+    gl_FragColor = vec4(fireRamp(0.25 + clamp(v,0.0,1.0)*0.6), a);
+  }`;
+const aoeRig = new THREE.Group();
+aoeRig.visible = false;
+scene.add(aoeRig);
+const aoeMat = new THREE.ShaderMaterial({
+  uniforms:{ uTime:{ value:0 }, uIntensity:{ value:0 }, uPulse:{ value:0 } },
+  vertexShader: FLAME_VERT, fragmentShader: AOE_FRAG,
+  transparent:true, depthWrite:false,
+  extensions:{ derivatives:true },
+});
+{
+  const plane = new THREE.Mesh(new THREE.PlaneGeometry(AOE_R/0.8*2, AOE_R/0.8*2), aoeMat);
+  plane.rotation.x = -Math.PI/2;
+  plane.position.y = 0.02;
+  plane.renderOrder = 2;
+  aoeRig.add(plane);
+}
+// eight emitter points on the ring: the ground fire is the same particles,
+// so it obeys the same buoyancy and puffing clock as the column
+const RING_DIRS = [];
+for (let i=0;i<8;i++){
+  const a = (i/8)*Math.PI*2 + 0.31;
+  RING_DIRS.push({ x: Math.cos(a)*AOE_R*0.92, z: Math.sin(a)*AOE_R*0.92 });
+}
+const _ringOut = RING_DIRS.map(() => ({ x:0, z:0 }));
+function ringEmitters(centre){
+  for (let i=0;i<RING_DIRS.length;i++){
+    _ringOut[i].x = centre.x + RING_DIRS[i].x;
+    _ringOut[i].z = centre.z + RING_DIRS[i].z;
+  }
+  return _ringOut;
+}
+const aoePos = new THREE.Vector3();
+let aoePulse = 0, aoeReady = false;
+
+const burnLight = new THREE.PointLight(0xff7a2a, 0, 11, 2);
+burnLight.visible = false;
+scene.add(burnLight);
+
+const burn = {
+  dur:0, t:0, char:0, heat:0, ticks:0, tickT:0,
+  emberAcc:0, smokeAcc:0,
+  lean: new THREE.Vector3(), prev: new THREE.Vector3(0,0.5,0),
+};
+const BURN_BASE = 3.4, BURN_CAP = 6.5, BURN_TICK = 0.42;
+
+function ignite(){
+  // re-triggering while alight refreshes and extends, up to a cap
+  const remain = Math.max(0, burn.dur - burn.t);
+  burn.dur = Math.min(BURN_CAP, remain + BURN_BASE);
+  burn.t = 0;
+  burn.tickT = 0;
+}
+function burnIntensity(){
+  if (burn.dur <= 0) return 0;
+  const k = burn.t/burn.dur;
+  const inRamp  = Math.min(1, burn.t/0.14);
+  const outRamp = Math.min(1, (1 - k)/0.3);
+  return Math.max(0, inRamp*outRamp);
+}
+function isBurning(){ return burn.dur > 0; }
+
+function stepBurn(dt, t, baseY){
+  if (burn.dur > 0){
+    burn.t += dt;
+    if (burn.t >= burn.dur){ burn.dur = 0; burn.t = 0; }
+  }
+  const bi = burnIntensity();
+
+  // soot builds while alight and weathers off slowly; heat lingers past the flame
+  burn.char = Math.max(0, Math.min(1, burn.char + (bi > 0.05 ? dt/1.5 : -dt/5.5)));
+  burn.heat = Math.max(bi, burn.heat - dt*0.34);
+
+  // flames drag behind the cube's motion
+  const vx = (state.pos.x - burn.prev.x)/Math.max(dt, 1e-4);
+  const vz = (state.pos.z - burn.prev.z)/Math.max(dt, 1e-4);
+  burn.prev.copy(state.pos);
+  const lx = Math.max(-0.24, Math.min(0.24, -vx*0.045));
+  const lz = Math.max(-0.24, Math.min(0.24, -vz*0.045));
+  burn.lean.lerp(tmpV.set(lx, 0, lz), Math.min(1, dt*9));
+
+  // plume: particles emitted at the cube's top face on the puffing clock
+  stepFire(dt, bi, baseY,
+           cubeRig.position.x + burn.lean.x,
+           cubeRig.position.z + burn.lean.z,
+           bi > 0.05 ? ringEmitters(aoePos) : null);
+  fireMat.uniforms.uTime.value = t;
+
+  // flame skin on the cube itself
+  fireShell.visible = bi > 0.01;
+  if (fireShell.visible){
+    shellMat.uniforms.uTime.value = t;
+    shellMat.uniforms.uIntensity.value = bi;
+    shellMat.uniforms.uBaseY.value = baseY;
+  }
+
+  // ground AOE aura: lags a beat behind the cube, like heat it's shedding
+  if (bi > 0.01){
+    if (!aoeReady){ aoePos.set(state.pos.x, 0, state.pos.z); aoeReady = true; }
+    aoePos.lerp(tmpV.set(state.pos.x, 0, state.pos.z), 1 - Math.exp(-8*dt));
+    aoeRig.visible = true;
+    aoePos.y = H(Math.round(cubeRig.position.x), Math.round(cubeRig.position.z)) + 0.02;
+    aoeRig.position.copy(aoePos);
+    aoePulse = Math.max(0, aoePulse - dt*2.2);
+    aoeMat.uniforms.uTime.value = t;
+    aoeMat.uniforms.uIntensity.value = bi;
+    aoeMat.uniforms.uPulse.value = aoePulse;
+  } else {
+    aoeRig.visible = false;
+    aoeReady = false;
+  }
+
+  // firelight: flicker on top of the burn envelope
+  burnLight.visible = burn.heat > 0.02;
+  if (burnLight.visible){
+    const flick = 0.74 + 0.16*Math.sin(t*29.0) + 0.10*Math.sin(t*47.3 + 1.3);
+    burnLight.intensity = 3.2 * burn.heat * flick;
+    burnLight.position.set(cubeRig.position.x, baseY + 0.65, cubeRig.position.z);
+    burnLight.color.setRGB(1, 0.45 + 0.12*burn.heat, 0.14);
+  }
+
+  if (bi > 0.05){
+    // embers peel off the cube's surface, white-hot cooling to dull red
+    burn.emberAcc += dt*bi*30;
+    while (burn.emberAcc >= 1){
+      burn.emberAcc -= 1;
+      emit({ pos:tmpV.set(cubeRig.position.x, baseY + 0.5, cubeRig.position.z),
+             count:1, tex:'ember', color:[0xffe9a8,0xffc25a], colorEnd:0xb3300a, cPow:0.5,
+             speed:0.55, up:2.4, grav:2.6, drag:1.2, size:0.1, grow:-0.55,
+             life:0.85, spread:0.9, fade:1.1, turb:2.4 });
+    }
+    // and a thin plume off the top
+    burn.smokeAcc += dt*bi*7;
+    while (burn.smokeAcc >= 1){
+      burn.smokeAcc -= 1;
+      emit({ pos:tmpV.set(cubeRig.position.x, baseY + 1.55, cubeRig.position.z),
+             count:1, tex:'puff', color:0x9a938b, colorEnd:0xdedad4, cPow:1.4,
+             speed:0.35, up:1.7, grav:-1.1, drag:1.2, size:0.24, grow:3.0,
+             life:1.7, spread:0.45, fade:2.1, turb:1.6 });
+    }
+    // damage-over-time beat: a flare-up on every tick
+    burn.tickT += dt;
+    while (burn.tickT >= BURN_TICK){
+      burn.tickT -= BURN_TICK;
+      burn.ticks++;
+      onBurnTick(baseY);
+    }
+  }
+  return bi;
+}
+
+function onBurnTick(baseY){
+  const p = tmpV.set(aoePos.x, 0, aoePos.z);
+  lightBurst(p, 0xff8c34, 2.4, 0.26, 'fire', baseY + 0.7);
+  aoePulse = 1;                                    // the AOE ring sweeps outward
+  // the damage zone leaves its own footprint each tick
+  mark(p, 'scorch', AOE_R*0.85, 0.22, 2.2);
+  ring(p, { r0:0.3, r1:AOE_R*1.05, dur:0.4, opacity:0.3, color:0xff5a1f });
+  // embers jump at the DAMAGE RADIUS, not just under the cube
+  emit({ pos:new THREE.Vector3(p.x, 0.06, p.z), count:12, tex:'ember',
+         color:[0xffe9a8,0xffcf6a], colorEnd:0xc23a0c, cPow:0.5, ringR:AOE_R*0.9,
+         speed:0.7, up:2.4, grav:4.2, drag:1.3, size:0.11, grow:-0.5,
+         life:0.6, spread:0.15, fade:1.1 });
+  // plus a flare off the cube itself
+  emit({ pos:new THREE.Vector3(cubeRig.position.x, baseY + 0.55, cubeRig.position.z),
+         count:6, tex:'puff', color:0xff8a2b, colorEnd:0xd23a0c, cPow:0.7,
+         speed:0.7, up:2.0, grav:-1.8, drag:1.7, size:0.26, grow:0.5,
+         life:0.5, spread:0.4, fade:1.4, turb:3.0 });
+  state.svel -= 0.55;                              // a small hitch on each tick
+  burnEl.classList.add('on');
+  btickEl.textContent = burn.ticks + (burn.ticks === 1 ? ' tick' : ' ticks');
+}
+
+// ---------------------------------------------------------------- fx: particles
+// texture atlas: left half = crisp soft dot (embers/sparks), right = ragged puff (dust/smoke)
+/*  Four cells. Cells 0-1 stay soft for dust and smoke; cells 2-3 are hard
+    edged to match the drawn elemental shapes. The BLUE channel is a core
+    mask, letting one particle carry two flat tones the way the glyphs do. */
+function particleAtlas(){
+  const c = document.createElement('canvas'); c.width = 256; c.height = 64;
+  const g = c.getContext('2d');
+  // 0: soft dot (yellow so the blue/core channel stays clear)
+  let grd = g.createRadialGradient(32,32,0,32,32,30);
+  grd.addColorStop(0,'rgba(255,255,0,1)');
+  grd.addColorStop(0.5,'rgba(255,255,0,0.85)');
+  grd.addColorStop(1,'rgba(255,255,0,0)');
+  g.fillStyle = grd; g.fillRect(0,0,64,64);
+  // 1: soft puff
+  for (const [x,y,r,a] of [[96,32,24,.55],[86,26,15,.5],[106,38,14,.5],[92,42,12,.45],[104,24,11,.45],[96,32,30,.28]]){
+    grd = g.createRadialGradient(x,y,0,x,y,r);
+    grd.addColorStop(0,`rgba(255,255,0,${a})`);
+    grd.addColorStop(1,'rgba(255,255,0,0)');
+    g.fillStyle = grd; g.fillRect(64,0,64,64);
+  }
+  // 2: flat disc, crisp edge
+  g.fillStyle = 'rgba(255,255,0,1)';
+  g.beginPath(); g.arc(160,32,25,0,Math.PI*2); g.fill();
+  // 3: two-tone ember, blue channel marks the lighter core
+  g.fillStyle = 'rgba(255,255,0,1)';
+  g.beginPath(); g.arc(224,32,26,0,Math.PI*2); g.fill();
+  g.fillStyle = 'rgba(255,255,255,1)';
+  g.beginPath(); g.arc(222,29,12,0,Math.PI*2); g.fill();
+  return new THREE.CanvasTexture(c);
+}
+const TEX_OFF = { dot:0.0, puff:0.25, flat:0.5, ember:0.75 };
+const PMAX = 1100;
+const pGeo = new THREE.BufferGeometry();
+pGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(PMAX*3), 3));
+pGeo.setAttribute('aColor',   new THREE.BufferAttribute(new Float32Array(PMAX*3), 3));
+pGeo.setAttribute('aSize',    new THREE.BufferAttribute(new Float32Array(PMAX), 1));
+pGeo.setAttribute('aAlpha',   new THREE.BufferAttribute(new Float32Array(PMAX), 1));
+pGeo.setAttribute('aOff',     new THREE.BufferAttribute(new Float32Array(PMAX), 1));
+pGeo.setDrawRange(0, 0);
+const pMat = new THREE.ShaderMaterial({
+  uniforms:{ map:{ value: particleAtlas() } },
+  transparent:true, depthWrite:false,
+  vertexShader:`
+    attribute float aSize; attribute vec3 aColor; attribute float aAlpha; attribute float aOff;
+    varying vec3 vC; varying float vA; varying float vOff;
+    void main(){
+      vC = aColor; vA = aAlpha; vOff = aOff;
+      vec4 mv = modelViewMatrix * vec4(position, 1.0);
+      gl_PointSize = aSize * (340.0 / max(0.001, -mv.z));
+      gl_Position = projectionMatrix * mv;
+    }`,
+  fragmentShader:`
+    uniform sampler2D map; varying vec3 vC; varying float vA; varying float vOff;
+    void main(){
+      vec2 uv = vec2(gl_PointCoord.x*0.25 + vOff, gl_PointCoord.y);
+      vec4 t = texture2D(map, uv);
+      if (t.a * vA < 0.004) discard;
+      // blue channel is the core mask: one particle, two flat tones
+      vec3 col = mix(vC, vec3(1.0, 0.945, 0.788), t.b);
+      gl_FragColor = vec4(col, t.a * vA);
+    }`
+});
+const points = new THREE.Points(pGeo, pMat);
+points.frustumCulled = false;
+scene.add(points);
+
+const parts = [];
+const _c0 = new THREE.Color(), _c1 = new THREE.Color();
+// o.tex: 'dot' | 'puff'. o.colorEnd + o.cPow: colour grades over life (embers cool)
+function emit(o){
+  const off = TEX_OFF[o.tex] !== undefined ? TEX_OFF[o.tex] : 0.0;
+  for (let i=0;i<o.count;i++){
+    if (parts.length >= PMAX) break;
+    let a, sp;
+    if (o.ringR !== undefined){
+      // shockwave: spawn ON a circle, velocity strictly outward
+      a = (i/o.count)*Math.PI*2 + Math.random()*0.35;
+      sp = o.speed * (0.85 + Math.random()*0.3);
+    } else {
+      a = Math.random()*Math.PI*2;
+      sp = o.speed * (0.45 + Math.random()*0.85);
+    }
+    const up = o.up * (0.35 + Math.random());
+    _c0.setHex(Array.isArray(o.color) ? o.color[(Math.random()*o.color.length)|0] : o.color);
+    _c1.setHex(o.colorEnd !== undefined ? o.colorEnd : (Array.isArray(o.color) ? o.color[0] : o.color));
+    const rr = o.ringR || 0;
+    parts.push({
+      p: new THREE.Vector3(
+        o.pos.x + Math.cos(a)*rr + (Math.random()-0.5)*o.spread,
+        o.pos.y + Math.random()*o.spread*0.5,
+        o.pos.z + Math.sin(a)*rr + (Math.random()-0.5)*o.spread),
+      v: new THREE.Vector3(Math.cos(a)*sp, up, Math.sin(a)*sp),
+      g: o.grav, drag: o.drag,
+      size: o.size*(0.6+Math.random()*0.8), grow: o.grow||0,
+      life: 0, max: o.life*(0.7+Math.random()*0.6),
+      r0:_c0.r, g0:_c0.g, b0:_c0.b, r1:_c1.r, g1:_c1.g, b1:_c1.b,
+      cPow: o.cPow || 1, fade: o.fade || 1, off,
+      turb: o.turb || 0, seed: Math.random()*100,
+      zap: o.zap || 0, zapT: o.zap || 0,
+      // reference speed for the stepped crawl. Snapping samples THIS rather
+      // than the current velocity, so ~30 heading changes a second can't
+      // compound the spark into a standstill (or a runaway).
+      zapSpd: Math.hypot(Math.cos(a)*sp, Math.sin(a)*sp),
+    });
+  }
+}
+function stepParticles(dt, t){
+  const pa = pGeo.attributes;
+  for (let i=parts.length-1;i>=0;i--){
+    const q = parts[i];
+    q.life += dt;
+    if (q.life >= q.max){ parts.splice(i,1); continue; }
+    q.v.y -= q.g*dt;
+    if (q.zap){
+      // surface streamers move in jumps: hold a heading, then snap to a new one
+      q.zapT -= dt;
+      q.zapSpd *= 1 - Math.min(1, q.drag*dt);     // the crawl still slows with drag
+      if (q.zapT <= 0){
+        q.zapT = q.zap*(0.6 + Math.random()*0.9);
+        const sp = q.zapSpd*(0.75 + Math.random()*0.5);
+        const a = Math.random()*Math.PI*2;
+        q.v.x = Math.cos(a)*sp; q.v.z = Math.sin(a)*sp;
+        q.v.y = Math.abs(q.v.y)*0.4 + 0.5 + Math.random()*0.9;
+      }
+    }
+    if (q.turb){
+      // cheap curl: smoke and flame wander instead of rising in straight lines
+      q.v.x += Math.sin(t*3.1 + q.seed)      * q.turb * dt;
+      q.v.z += Math.sin(t*2.6 + q.seed*1.7)  * q.turb * dt;
+    }
+    q.v.multiplyScalar(1 - Math.min(1, q.drag*dt));
+    q.p.addScaledVector(q.v, dt);
+    if (q.p.y < 0.02){ q.p.y = 0.02; q.v.y *= -0.24; q.v.x *= 0.7; q.v.z *= 0.7; }
+  }
+  for (let i=0;i<parts.length;i++){
+    const q = parts[i], k = q.life/q.max;
+    const ck = Math.pow(k, q.cPow);
+    pa.position.setXYZ(i, q.p.x, q.p.y, q.p.z);
+    pa.aColor.setXYZ(i, q.r0+(q.r1-q.r0)*ck, q.g0+(q.g1-q.g0)*ck, q.b0+(q.b1-q.b0)*ck);
+    pa.aSize.setX(i, Math.max(0.01, q.size * (1 + q.grow*k)));
+    pa.aAlpha.setX(i, Math.pow(1-k, q.fade));
+    pa.aOff.setX(i, q.off);
+  }
+  pGeo.setDrawRange(0, parts.length);
+  pa.position.needsUpdate = pa.aColor.needsUpdate = pa.aSize.needsUpdate =
+  pa.aAlpha.needsUpdate = pa.aOff.needsUpdate = true;
+}
+
+// ---------------------------------------------------------------- fx: rings
+const rings = [];
+const ringGeo = new THREE.RingGeometry(0.86, 1.0, 64);
+for (let i=0;i<10;i++){
+  const m = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({
+    color:0xffffff, transparent:true, opacity:0, side:THREE.DoubleSide, depthWrite:false
+  }));
+  m.rotation.x = -Math.PI/2; m.position.y = 0.015; m.visible = false;
+  scene.add(m); rings.push({ mesh:m, live:false });
+}
+function ring(pos, opt){
+  const r = rings.find(x => !x.live) || rings[0];
+  r.live = true; r.t = 0;
+  r.dur = opt.dur; r.r0 = opt.r0; r.r1 = opt.r1; r.op = opt.opacity;
+  r.mesh.visible = true;
+  r.mesh.position.set(pos.x, 0.015 + (opt.y||0), pos.z);
+  r.mesh.material.color.setHex(opt.color);
+  r.mesh.scale.setScalar(opt.r0);
+}
+function stepRings(dt){
+  for (const r of rings){
+    if (!r.live) continue;
+    r.t += dt;
+    const k = Math.min(1, r.t/r.dur);
+    const e = 1 - Math.pow(1-k, 2.6);
+    r.mesh.scale.setScalar(r.r0 + (r.r1-r.r0)*e);
+    r.mesh.material.opacity = r.op * Math.pow(1-k, 1.7);
+    if (k >= 1){ r.live = false; r.mesh.visible = false; }
+  }
+}
+
+// ---------------------------------------------------------------- fx: decals
+// painted blotches instead of flat circles: charred scorch, crater, ionised floor
+function scorchTexture(){
+  const c = document.createElement('canvas'); c.width = c.height = 256;
+  const g = c.getContext('2d');
+  for (let i=0;i<26;i++){
+    const a = Math.random()*Math.PI*2, r = Math.random()*74;
+    const x = 128+Math.cos(a)*r, y = 128+Math.sin(a)*r, br = 14+Math.random()*30;
+    const grd = g.createRadialGradient(x,y,0,x,y,br);
+    grd.addColorStop(0, `rgba(24,16,12,${0.5 - r/74*0.32})`);
+    grd.addColorStop(1, 'rgba(24,16,12,0)');
+    g.fillStyle = grd; g.fillRect(0,0,256,256);
+  }
+  const grd = g.createRadialGradient(128,128,0,128,128,44);
+  grd.addColorStop(0,'rgba(190,72,20,0.35)');
+  grd.addColorStop(1,'rgba(190,72,20,0)');
+  g.fillStyle = grd; g.fillRect(0,0,256,256);
+  return new THREE.CanvasTexture(c);
+}
+function craterTexture(){
+  const c = document.createElement('canvas'); c.width = c.height = 256;
+  const g = c.getContext('2d');
+  const grd = g.createRadialGradient(128,128,0,128,128,110);
+  grd.addColorStop(0,'rgba(40,38,44,0.5)');
+  grd.addColorStop(0.4,'rgba(58,58,68,0.28)');
+  grd.addColorStop(1,'rgba(58,58,68,0)');
+  g.fillStyle = grd; g.fillRect(0,0,256,256);
+  g.strokeStyle = 'rgba(35,33,40,0.6)'; g.lineCap = 'round';
+  for (let a=0;a<9;a++){
+    const ang = (a/9)*Math.PI*2 + Math.random()*0.4;
+    let x=128, y=128, w=ang, r=8;
+    g.lineWidth = 3.2;
+    g.beginPath(); g.moveTo(x,y);
+    const segs = 3+((Math.random()*2)|0);
+    for (let s=0;s<segs;s++){
+      r += 24+Math.random()*26; w += (Math.random()-.5)*0.8;
+      x = 128+Math.cos(w)*r; y = 128+Math.sin(w)*r;
+      g.lineTo(x,y);
+      g.lineWidth *= 0.66;
+    }
+    g.stroke();
+  }
+  return new THREE.CanvasTexture(c);
+}
+function ionTexture(){
+  // scorched ionisation: dark centre, faint charge haze, thin jagged surface
+  // streamer traces radiating outward — what the ground looks like after a hit
+  const c = document.createElement('canvas'); c.width = c.height = 256;
+  const g = c.getContext('2d');
+  let grd = g.createRadialGradient(128,128,0,128,128,110);
+  grd.addColorStop(0,'rgba(28,30,72,0.55)');
+  grd.addColorStop(0.3,'rgba(59,70,224,0.28)');
+  grd.addColorStop(1,'rgba(59,70,224,0)');
+  g.fillStyle = grd; g.fillRect(0,0,256,256);
+  g.lineCap = 'round';
+  for (let i=0;i<14;i++){
+    const ang = (i/14)*Math.PI*2 + Math.random()*0.4;
+    let x = 128 + Math.cos(ang)*14, y = 128 + Math.sin(ang)*14, w = ang;
+    g.strokeStyle = i%3 === 0 ? 'rgba(200,206,255,0.8)' : 'rgba(59,70,224,0.7)';
+    g.lineWidth = 3;
+    g.beginPath(); g.moveTo(x,y);
+    const segs = 4 + ((Math.random()*3)|0);
+    let r = 14;
+    for (let s2=0;s2<segs;s2++){
+      r += 14 + Math.random()*18;
+      w += (Math.random()-.5)*0.9;
+      x = 128 + Math.cos(w)*r; y = 128 + Math.sin(w)*r;
+      g.lineTo(x,y);
+      g.lineWidth *= 0.72;
+    }
+    g.stroke();
+  }
+  return new THREE.CanvasTexture(c);
+}
+const DECAL_TEX = { scorch: scorchTexture(), crater: craterTexture(), ion: ionTexture() };
+const marks = [];
+const markGeo = new THREE.PlaneGeometry(2, 2);
+for (let i=0;i<8;i++){
+  const m = new THREE.Mesh(markGeo, new THREE.MeshBasicMaterial({
+    transparent:true, opacity:0, depthWrite:false
+  }));
+  m.rotation.x = -Math.PI/2; m.position.y = 0.008; m.visible = false;
+  scene.add(m); marks.push({ mesh:m, live:false });
+}
+function mark(pos, tex, radius, opacity, dur){
+  const m = marks.find(x => !x.live) || marks[0];
+  m.live = true; m.t = 0; m.dur = dur; m.op = opacity; m.grow = radius;
+  m.mesh.visible = true;
+  m.mesh.material.map = DECAL_TEX[tex];
+  m.mesh.material.needsUpdate = true;
+  m.mesh.position.set(pos.x, 0.008, pos.z);
+  m.mesh.rotation.z = Math.random()*Math.PI*2;
+  m.mesh.scale.setScalar(radius*0.4);
+}
+function stepMarks(dt){
+  for (const m of marks){
+    if (!m.live) continue;
+    m.t += dt;
+    const k = Math.min(1, m.t/m.dur);
+    m.mesh.scale.setScalar(m.grow * (0.4 + 0.6*Math.min(1, k*7)));
+    m.mesh.material.opacity = m.op * (1 - k*k);
+    if (k >= 1){ m.live = false; m.mesh.visible = false; }
+  }
+}
+
+// ---------------------------------------------------------------- fx: lightning
+// tapered camera-facing ribbon: white-hot core fading to blue haze at the edge.
+// Restrikes: the channel re-randomises twice, the way real return strokes do.
+/*  LIGHTNING — two acts.
+      ACT 1, THE BOLT: a giant fractal channel built by recursive midpoint
+        displacement (real leader tortuosity: displacement halves with each
+        subdivision), with downward-forking branches. Rendered as TWO ribbon
+        layers over the same path — a hot near-white core inside a wide deep
+        indigo corona, which is how a discharge reads against white where
+        additive glow is impossible. It wipes to ground in 15ms and restrikes
+        twice, and its brightness chatters at ~180Hz on real time.
+      ACT 2, THE SPREAD: the charge doesn't stop at the strike point. A front
+        expands across the floor to 2.6 units over 0.45s; as it passes it
+        spawns short-lived crawling arcs (tangent-biased mini-bolts that hug
+        the ground), stepped "zap" sparks whose velocity re-randomises every
+        few hundredths of a second the way surface streamers jump, and an
+        ionisation shimmer decal. Everything strobes on real time so the
+        hit-stop freeze still crackles.                                     */
+const ELEC_FRAG = `
+  uniform float uOpacity, uReveal, uTime;
+  varying float vX, vA, vSeed;
+  ${GFX_LIB}
+  void main(){
+    if (vA > uReveal) discard;
+    float d = abs(vX*2.0 - 1.0);
+    // per-fragment chatter: the channel brightness is never steady
+    float chatter = 0.72 + 0.28*sin(uTime*181.0 + vSeed*39.0 + vA*23.0);
+    float core = 1.0 - smoothstep(0.30, 0.46, d);
+    float body = 1.0 - smoothstep(0.86, 1.0, d);
+    vec3 col = mix(vec3(0.16, 0.17, 0.62), vec3(0.90, 0.92, 1.0), core);
+    float a = body * (0.30 + 0.70*core) * uOpacity * chatter;
+    if (a < 0.012) discard;
+    gl_FragColor = vec4(col, a);
+  }`;
+function makeElecMat(){
+  return new THREE.ShaderMaterial({
+    uniforms:{ uOpacity:{ value:0 }, uReveal:{ value:1 }, uTime:{ value:0 } },
+    transparent:true, depthWrite:false, side:THREE.DoubleSide,
+    extensions:{ derivatives:true },
+    vertexShader:`
+      attribute float aAcross, aAlong, aSeed;
+      varying float vX, vA, vSeed;
+      void main(){
+        vX = aAcross; vA = aAlong; vSeed = aSeed;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }`,
+    fragmentShader: ELEC_FRAG,
+  });
+}
+
+// ---- shared ribbon assembler: polylines -> camera-facing quad strips
+function ribbonGeo(polys){
+  const pos = [], across = [], along = [], seed = [], idx = [];
+  const side = new THREE.Vector3(), dir = new THREE.Vector3();
+  for (const P of polys){
+    const pts = P.pts, w = P.w, sd = P.seed || 0;
+    const a0 = P.a0 !== undefined ? P.a0 : 0, a1 = P.a1 !== undefined ? P.a1 : 1;
+    for (let i=0;i<pts.length-1;i++){
+      const a = pts[i], b = pts[i+1];
+      const t0 = i/(pts.length-1), t1 = (i+1)/(pts.length-1);
+      dir.subVectors(b, a);
+      side.crossVectors(dir, VIEW_DIR).normalize();
+      const wA = w*(P.taper ? (1 - 0.75*t0) : 1), wB = w*(P.taper ? (1 - 0.75*t1) : 1);
+      const base = pos.length/3;
+      pos.push(
+        a.x+side.x*wA, a.y+side.y*wA, a.z+side.z*wA,
+        a.x-side.x*wA, a.y-side.y*wA, a.z-side.z*wA,
+        b.x+side.x*wB, b.y+side.y*wB, b.z+side.z*wB,
+        b.x-side.x*wB, b.y-side.y*wB, b.z-side.z*wB
+      );
+      across.push(0,1,0,1);
+      along.push(a0+(a1-a0)*t0, a0+(a1-a0)*t0, a0+(a1-a0)*t1, a0+(a1-a0)*t1);
+      seed.push(sd,sd,sd,sd);
+      idx.push(base, base+1, base+2, base+1, base+3, base+2);
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('aAcross',  new THREE.Float32BufferAttribute(across, 1));
+  g.setAttribute('aAlong',   new THREE.Float32BufferAttribute(along, 1));
+  g.setAttribute('aSeed',    new THREE.Float32BufferAttribute(seed, 1));
+  g.setIndex(idx);
+  return g;
+}
+
+// ---- fractal channel: midpoint displacement, halving per level
+const BOLT_TOP = 11.0;
+let boltGroundY = 0.55;   // resolved per strike from the terrain column
+function fractalPath(a, b, disp, depth, roll){
+  let pts = [a.clone(), b.clone()];
+  for (let level=0; level<depth; level++){
+    const next = [pts[0]];
+    for (let i=0;i<pts.length-1;i++){
+      const p0 = pts[i], p1 = pts[i+1];
+      const mid = p0.clone().add(p1).multiplyScalar(0.5);
+      const ang = Math.random()*Math.PI*2;
+      mid.x += Math.cos(ang)*disp*(Math.random()*0.9+0.1)*roll;
+      mid.z += Math.sin(ang)*disp*(Math.random()*0.9+0.1)*roll;
+      next.push(mid, p1);
+    }
+    pts = next;
+    disp *= 0.5;                               // the fractal halving
+  }
+  return pts;
+}
+function buildBolt(x, z){
+  const top = new THREE.Vector3(x + (Math.random()-0.5)*2.2, BOLT_TOP, z + (Math.random()-0.5)*2.2);
+  const hit = new THREE.Vector3(x, boltGroundY, z);
+  const main = fractalPath(top, hit, 1.9, 5, 1);
+  main[main.length-1].set(x, boltGroundY, z);  // displacement never moves the strike point
+  const alongOf = y => Math.max(0, Math.min(1, (BOLT_TOP - y)/(BOLT_TOP - boltGroundY)));
+  const polys = [{ pts: main, w: 1, seed: Math.random()*10 }];
+  // branches: fork from upper nodes, dive down and out, half the displacement
+  const nB = 3 + ((Math.random()*3)|0);
+  for (let b=0;b<nB;b++){
+    const i = 2 + ((Math.random()*(main.length*0.6))|0);
+    const from = main[Math.min(i, main.length-3)];
+    const ang = Math.random()*Math.PI*2;
+    const len = 1.4 + Math.random()*2.2;
+    const to = from.clone().add(new THREE.Vector3(
+      Math.cos(ang)*len*0.7, -len, Math.sin(ang)*len*0.7));
+    if (to.y < 0.1) to.y = 0.1;
+    polys.push({ pts: fractalPath(from, to, 0.8, 4, 1), w: 0.42, seed: Math.random()*10, taper: true, branch:true });
+  }
+  // per-polyline along coords from world height so one wipe sweeps everything
+  for (const P of polys){
+    P.a0 = alongOf(P.pts[0].y);
+    P.a1 = alongOf(P.pts[P.pts.length-1].y);
+  }
+  return polys;
+}
+
+const boltCoreMat = makeElecMat(), boltHaloMat = makeElecMat();
+const boltCore = new THREE.Mesh(new THREE.BufferGeometry(), boltCoreMat);
+const boltHalo = new THREE.Mesh(new THREE.BufferGeometry(), boltHaloMat);
+for (const m of [boltCore, boltHalo]){
+  m.frustumCulled = false; m.visible = false; m.renderOrder = 4;
+  scene.add(m);
+}
+boltHalo.renderOrder = 3;
+let boltT = 0, boltDur = 0, boltX = 0, boltZ = 0, restrikes = 0, nextRestrike = 0, boltRevealT = 0;
+
+function setBoltGeometry(x, z){
+  const polys = buildBolt(x, z);
+  boltCore.geometry.dispose(); boltHalo.geometry.dispose();
+  boltCore.geometry = ribbonGeo(polys.map(P => ({ ...P, w: P.w*0.075 })));
+  boltHalo.geometry = ribbonGeo(polys.map(P => ({ ...P, w: P.w*0.26 })));
+}
+function strikeBolt(x, z){
+  boltGroundY = H(Math.round(x), Math.round(z)) + 0.05;
+  setBoltGeometry(x, z);
+  boltCore.visible = boltHalo.visible = true;
+  boltT = 0; boltDur = 0.5; boltX = x; boltZ = z;
+  restrikes = 2; nextRestrike = 0.12; boltRevealT = 0;
+  startSpread(x, z);
+}
+function stepBolt(dt, rawT){
+  if (!boltCore.visible) return;
+  boltT += dt; boltRevealT += dt;
+  if (restrikes > 0 && boltT >= nextRestrike){
+    setBoltGeometry(boltX, boltZ);             // the channel re-forms
+    restrikes--; nextRestrike += 0.12; boltRevealT = 0;
+    flash(0.4, 'rgba(110,122,255,0.55)');
+  }
+  const k = boltT/boltDur;
+  if (k >= 1){
+    boltCore.visible = boltHalo.visible = false;
+    boltCoreMat.uniforms.uOpacity.value = boltHaloMat.uniforms.uOpacity.value = 0;
+    return;
+  }
+  const env = Math.pow(1-k, 1.5);
+  const reveal = Math.min(1, boltRevealT/0.015);
+  for (const m of [boltCoreMat, boltHaloMat]){
+    m.uniforms.uOpacity.value = env;
+    m.uniforms.uReveal.value = reveal;
+    m.uniforms.uTime.value = rawT;             // chatter survives the hit-stop
+  }
+  boltHaloMat.uniforms.uOpacity.value = env*0.7;
+}
+
+// ---- ACT 2: the ground spread ----------------------------------------------
+const SPREAD_R = 2.6, SPREAD_DUR = 0.45;
+const groundArcMat = makeElecMat();
+const groundArcs = new THREE.Mesh(new THREE.BufferGeometry(), groundArcMat);
+groundArcs.frustumCulled = false; groundArcs.visible = false; groundArcs.renderOrder = 3;
+scene.add(groundArcs);
+const spread = { live:false, t:0, x:0, z:0, arcs:[], acc:0 };
+
+function startSpread(x, z){
+  spread.live = true; spread.t = 0; spread.x = x; spread.z = z;
+  spread.arcs.length = 0; spread.acc = 0;
+}
+function spawnArc(front){
+  const ang = Math.random()*Math.PI*2;
+  const r = front*(0.75 + Math.random()*0.3);
+  const ax = spread.x + Math.cos(ang)*r, az = spread.z + Math.sin(ang)*r;
+  // tangent-biased crawl direction, hugging the floor with little vertical pops
+  const tangential = ang + Math.PI/2*(Math.random() < 0.5 ? 1 : -1) + (Math.random()-0.5)*0.9;
+  const len = 0.5 + Math.random()*0.7;
+  const gy = boltGroundY - 0.02;
+  const from = new THREE.Vector3(ax, gy, az);
+  const to = new THREE.Vector3(ax + Math.cos(tangential)*len, gy, az + Math.sin(tangential)*len);
+  const pts = fractalPath(from, to, 0.22, 3, 1);
+  for (const p of pts) p.y = gy + Math.random()*0.10;
+  pts[0].y = gy; pts[pts.length-1].y = gy;
+  spread.arcs.push({ pts, seed: Math.random()*10, age: 0, life: 0.05 + Math.random()*0.09 });
+}
+function stepSpread(dt, rawT, rawDt){
+  if (!spread.live){ groundArcs.visible = false; return; }
+  spread.t += dt;
+  const k = Math.min(1, spread.t/SPREAD_DUR);
+  const front = SPREAD_R*(1 - Math.pow(1-k, 2.2));   // decelerating front
+  if (k < 1){
+    spread.acc += dt*90;                              // arcs per second at the front
+    while (spread.acc >= 1){
+      spread.acc -= 1;
+      spawnArc(front);
+      // stepped sparks ride the front as it passes
+      if (Math.random() < 0.5){
+        const a = Math.random()*Math.PI*2;
+        emit({ pos: new THREE.Vector3(spread.x + Math.cos(a)*front, 0.05, spread.z + Math.sin(a)*front),
+               count: 1, tex:'flat', color:[0xdfe3ff, 0x8f9bff], colorEnd:0x2a35c9, cPow:0.6,
+               speed: 1.6, up: 1.6, grav: 8, drag: 0.8, size: 0.085, grow: -0.3,
+               life: 0.4, spread: 0.1, fade: 1.1, zap: 0.035 });
+      }
+    }
+  }
+  // age arcs on REAL time so they flicker through the hit-stop
+  for (let i=spread.arcs.length-1;i>=0;i--){
+    const a = spread.arcs[i];
+    a.age += rawDt;
+    if (a.age >= a.life) spread.arcs.splice(i, 1);
+  }
+  if (spread.arcs.length === 0 && k >= 1){ spread.live = false; groundArcs.visible = false; return; }
+  groundArcs.geometry.dispose();
+  groundArcs.geometry = ribbonGeo(spread.arcs.map(a => ({ pts: a.pts, w: 0.05, seed: a.seed, taper: true })));
+  groundArcs.visible = spread.arcs.length > 0;
+  groundArcMat.uniforms.uOpacity.value = 0.95*(1 - k*0.5);
+  groundArcMat.uniforms.uReveal.value = 1;
+  groundArcMat.uniforms.uTime.value = rawT;
+}
+
+// ---------------------------------------------------------------- fx: burst
+/*  Impact fireball: a camera-facing quad whose fbm density balloons and
+    gutters out, shaded on the blackbody ramp; hottest at the moment of
+    impact, cooling as it expands.                                          */
+const BURST_FRAG = `
+  uniform float uTime, uProgress;
+  varying vec2 vUv;
+  ${GFX_LIB}
+  void main(){
+    vec2 p = (vUv - 0.5)*2.0;
+    float r = length(p);
+    float n = fbm(p*2.6 + vec2(uTime*0.4, -uTime*2.2));
+    float d = r - 0.92 + (n - 0.42)*0.85 + uProgress*0.35;
+    float a = (1.0 - smoothstep(-0.25, 0.06, d)) * pow(1.0 - uProgress, 1.3);
+    if (a < 0.012) discard;
+    float T = clamp((1.0 - r*0.7)*(1.0 - uProgress*0.75) + 0.25, 0.0, 1.0);
+    gl_FragColor = vec4(fireRamp(T), a*0.95);
+  }`;
+const burst = {
+  live:false, t:0, dur:0.4,
+  mesh: new THREE.Mesh(new THREE.PlaneGeometry(1,1), new THREE.ShaderMaterial({
+    uniforms:{ uTime:{ value:0 }, uProgress:{ value:0 } },
+    vertexShader: FLAME_VERT, fragmentShader: BURST_FRAG,
+    transparent:true, depthWrite:false, side:THREE.DoubleSide,
+    extensions:{ derivatives:true },
+  })),
+};
+burst.mesh.visible = false;
+burst.mesh.rotation.y = Math.atan2(CAM_OFFSET.x, CAM_OFFSET.z);
+burst.mesh.renderOrder = 4;
+scene.add(burst.mesh);
+function igniteFireball(pos){
+  burst.live = true; burst.t = 0;
+  burst.mesh.position.set(pos.x, 0.55, pos.z);
+  burst.mesh.visible = true;
+}
+function stepFireball(dt, t){
+  if (!burst.live) return;
+  burst.t += dt;
+  const k = burst.t/burst.dur;
+  if (k >= 1){ burst.live = false; burst.mesh.visible = false; return; }
+  const e = 1 - Math.pow(1-k, 2.4);
+  burst.mesh.scale.setScalar(0.9 + 3.0*e);
+  burst.mesh.position.y = 0.55 + 0.5*e;
+  burst.mesh.material.uniforms.uTime.value = t;
+  burst.mesh.material.uniforms.uProgress.value = k;
+}
+
+// ---------------------------------------------------------------- fx: debris
+const debris = [];
+{
+  const dgeo = roundedBox(0.15, 0.03, 3);
+  const dmats = [
+    makeToon({ color:0xb7b2ab }),
+    makeToon({ color:0x9d9890 }),
+    makeToon({ color:0xcfcac2 }),
+  ];
+  for (let i=0;i<20;i++){
+    const m = new THREE.Mesh(dgeo, dmats[i%3]);
+    m.castShadow = true; m.visible = false;
+    scene.add(m);
+    debris.push({ mesh:m, live:false, v:new THREE.Vector3(), av:new THREE.Vector3() });
+  }
+}
+function throwDebris(x, z, n){
+  let spawned = 0;
+  for (const d of debris){
+    if (spawned >= n) break;
+    if (d.live) continue;
+    d.live = true; d.t = 0; d.max = 1.1 + Math.random()*0.5;
+    const a = Math.random()*Math.PI*2, s = 2.2 + Math.random()*3.4;
+    d.mesh.visible = true;
+    d.mesh.position.set(x + Math.cos(a)*0.3, 0.2, z + Math.sin(a)*0.3);
+    d.mesh.scale.set(0.6+Math.random(), 0.5+Math.random()*0.7, 0.6+Math.random());
+    d.v.set(Math.cos(a)*s, 3.4 + Math.random()*3.4, Math.sin(a)*s);
+    d.av.set((Math.random()-.5)*16, (Math.random()-.5)*16, (Math.random()-.5)*16);
+    spawned++;
+  }
+}
+function stepDebris(dt){
+  for (const d of debris){
+    if (!d.live) continue;
+    d.t += dt;
+    d.v.y -= 26*dt;
+    d.mesh.position.addScaledVector(d.v, dt);
+    d.mesh.rotation.x += d.av.x*dt; d.mesh.rotation.y += d.av.y*dt; d.mesh.rotation.z += d.av.z*dt;
+    if (d.mesh.position.y < 0.07){
+      d.mesh.position.y = 0.07;
+      d.v.y *= -0.38; d.v.x *= 0.62; d.v.z *= 0.62; d.av.multiplyScalar(0.55);
+      if (Math.abs(d.v.y) > 0.8){
+        emit({ pos:d.mesh.position, count:2, tex:'puff', color:0xd8d3cc, colorEnd:0xeceae6,
+               speed:0.5, up:0.4, grav:1.4, drag:2.6, size:0.11, grow:1.6, life:0.35, spread:0.08, fade:1.6 });
+      }
+    }
+    if (d.t > d.max*0.65){
+      const k = (d.t - d.max*0.65)/(d.max*0.35);
+      d.mesh.scale.multiplyScalar(Math.max(0.001, 1 - k*0.06));
+    }
+    if (d.t >= d.max){ d.live = false; d.mesh.visible = false; }
+  }
+}
+
+// ---------------------------------------------------------------- fx: screen flash
+const flashEl = document.getElementById('flash');
+let flashV = 0;
+function flash(v, css){
+  flashV = Math.max(flashV, v);
+  flashEl.style.background =
+    `radial-gradient(circle at 50% 45%, ${css || 'rgba(120,132,255,.55)'}, rgba(255,255,255,0) 62%)`;
+}
+
+/* ===================== THE BLANK: world slice ============================
+   One landmark, a tile vocabulary, a face-stamp door, one enemy shape.
+   Layout (grid cells; north = -Z = screen-up):
+
+        z=-25   ·  lightning glyph (inside)
+        z=-22   ████ door ████     monolith wall, opening at x=0 sealed
+        z=-20   ·  socket          wants FIRE pressed face-DOWN
+        z=-15   ▲  turret at x=2   pyramid, cross-blast, fire-vulnerable
+        z=-12   ░░░ gap row ░░░    x -4..4, one cell deep: leap it
+        z=-7    ✦  shrine          grants FIRE to the face touching it
+        z= 0    ·  start
+========================================================================== */
+const CELL = (x,z) => x+','+z;
+const W = {
+  gap: new Set(),        // rolls refused; leap landings fall
+  wall: new Set(),       // never enterable
+  doorCell: CELL(0,-22),
+  doorOpen: false,
+  shrine: { x:0, z:-7, taken:false },
+  glyph2: { x:0, z:-25, taken:false },
+  socket: { x:0, z:-20 },
+  turrets: [],
+  turretSeen: false,
+  anchor: new THREE.Vector3(0, 0.5, 0),
+  stage: 'seek',
+  integrity: 3, iframes: 0,
+  found: new Set(),
+};
+// the chasm: wide enough that walking around is a real detour, not an accident
+for (let x=-7; x<=7; x++) W.gap.add(CELL(x,-12));
+// the sealed chamber: fully enclosed, the door is the only way in
+for (let x=-3; x<=3; x++) if (x !== 0) W.wall.add(CELL(x,-22));
+for (let z=-23; z>=-27; z--){ W.wall.add(CELL(-3,z)); W.wall.add(CELL(3,z)); }
+for (let x=-3; x<=3; x++) W.wall.add(CELL(x,-28));
+
+// sentries: a gauntlet between the chasm and the seal. They occupy their cell,
+// so they are obstacles as well as threats, and the cell frees when one dies.
+// Kept OFF the socket's own column: a sentry at x=0 forces a detour that
+// happens to fix the die's parity for free, which hollows out the seal puzzle.
+//
+// NOTE: these are deliberately NOT added to W.wall. That set is STRUCTURE —
+// the mesh builder erects an ink wall segment on every cell in it, which is
+// exactly how each pyramid once got a tall box built on top of it. Sentry
+// occupancy is dynamic (it ends when one dies), so isWall() derives it from
+// the living turrets instead.
+const TURRET_SITES = [[2,-15], [-2,-15], [4,-18], [-4,-18], [1,-19]];
+
+/* ═══════════════════════ TERRAIN CONSTRUCTION REFERENCE ═══════════════════
+   The world is geometry, so terrain is BUILT, not sculpted: every hill is a
+   stack of unit cubes in grid cells, the way you would build a rolling hill
+   out of LEGO. This block is the authority — all terrain work follows it.
+
+   THE FIVE RULES
+   1. HEIGHTS ARE INTEGERS. A cell's height h is a count of stacked unit
+      cubes, h ≥ 0. There are no half-steps, ramps, or smooth slopes, ever.
+      "Rolling" is an illusion made of terraces, exactly as in LEGO.
+   2. A SLOPE IS A STAIRCASE. Adjacent cells differing by exactly ±1 are
+      rollable: the cube tumbles up or down the step in one ordinary roll
+      (same quarter-turn — elevation never changes orientation math).
+   3. A CLIFF IS A WALL. |Δh| ≥ 2 between adjacent cells refuses rolls in
+      BOTH directions, exactly like the monolith. No pit is enterable that
+      cannot be exited.
+   4. LEAPS RESPECT THE ARC. A leap passes over a mid cell up to start+1 and
+      may land on ground up to start+1. Any DROP is fine — hopping off a
+      terrace is allowed and encouraged.
+   5. TERRAIN KEEPS ITS DISTANCE. No terrain on, and none within 2 cells of:
+      gap rows (leap rims must stay flat), structure walls, the door, the
+      socket, pickups, the Keeper, sentries, or the start.
+
+   CONSTRUCTION
+   - A HILL is a terraced pyramid: cell height = peak − chebyshev(ring).
+     terraceHill(cx, cz, peak) builds one; peak ≤ 3 in this slice.
+   - Every summit must be reachable: a ±1 staircase exists on every side of
+     a terraceHill by construction. If hand-placing cells with raiseRect,
+     verify a staircase path yourself — the QA checks reachability.
+   - Author ONLY through these helpers into W.h. Never write W.h directly
+     elsewhere; renderer, movement, effects, and QA all read the same map.
+   ══════════════════════════════════════════════════════════════════════════ */
+W.h = new Map();
+const H = (x,z) => W.h.get(CELL(x,z)) || 0;
+function raiseRect(x0, z0, x1, z1, h){
+  for (let x=x0; x<=x1; x++) for (let z=z0; z<=z1; z++)
+    if (h > H(x,z)) W.h.set(CELL(x,z), h);
+}
+function terraceHill(cx, cz, peak){
+  for (let r=0; r<peak; r++){
+    const h = peak - r;
+    raiseRect(cx-r, cz-r, cx+r, cz+r, h);
+  }
+}
+// ---- the authored landscape of this slice ----
+terraceHill(7, -3, 3);      // a rolling hill east of the start: the invitation
+terraceHill(-7, -16, 2);    // a vantage terrace on the gauntlet's west flank
+
+const isGap  = (x,z) => W.gap.has(CELL(x,z));
+const turretAt = (x,z) => W.turrets.some(T => T.alive && T.x === x && T.z === z);
+const isWall = (x,z) => W.wall.has(CELL(x,z))
+  || (!W.doorOpen && CELL(x,z) === W.doorCell)
+  || turretAt(x,z)
+  || npcAt(x,z);
+// a roll may not enter walls or gaps; a leap may pass over gaps but not walls
+const canRoll = (x,z) => !isWall(x,z) && !isGap(x,z);
+const canLeapOver = (x,z) => !isWall(x,z);
+
+// ---------------- meshes ----------------
+const worldGroup = new THREE.Group();
+scene.add(worldGroup);
+const inkMat = makeToon({ color:0x2e2e38 });
+
+/*  ---- terrain renderer -------------------------------------------------
+    Rule 1 made visible, and made READABLE. The lighting alone cannot show a
+    terrace: with the key light at 52 degrees, a top face and the sun-facing
+    side both land in the toon ramp's lit band, so a white column's brightest
+    edge is invisible against its own top.
+
+    So the value contrast is baked into the albedo, on a physical basis —
+    SKY EXPOSURE. A horizontal top sees the whole sky dome. A vertical face
+    sees about half of it, so it is materially darker. A crevice sees less
+    still: within each stacked unit the value falls toward its base, every
+    unit is darker than the one above it, and the ground contact is darkest.
+    That is ambient occlusion, authored rather than computed — the same
+    reasoning that makes a stack of white LEGO bricks legible in daylight.  */
+const SKY_TOP = 1.00;      // full dome
+const SKY_SIDE = 0.78;     // a vertical face sees about half the sky
+const SKY_CREV = 0.86;     // multiplier at the base of each unit
+const SKY_STACK = 0.055;   // each unit below the summit loses this much
+{
+  const U = 128;
+  const grey = v => {
+    const c = Math.round(255*v), b = Math.round(255*Math.min(1, v*1.02));  // faint cool cast
+    return `rgb(${c},${c},${b})`;
+  };
+  // top: near-white, with the terrace lip darkening slightly at its edges
+  const topTex = (() => {
+    const c = document.createElement('canvas'); c.width = c.height = U;
+    const g = c.getContext('2d');
+    g.fillStyle = grey(SKY_TOP); g.fillRect(0,0,U,U);
+    const vig = g.createRadialGradient(U/2,U/2,U*0.30, U/2,U/2,U*0.72);
+    vig.addColorStop(0,'rgba(150,163,200,0)');
+    vig.addColorStop(1,'rgba(150,163,200,0.16)');   // lip occlusion
+    g.fillStyle = vig; g.fillRect(0,0,U,U);
+    g.strokeStyle = 'rgba(132,148,196,0.70)'; g.lineWidth = 3;
+    g.strokeRect(1.5,1.5,U-3,U-3);
+    const t = new THREE.CanvasTexture(c); t.anisotropy = 8; return t;
+  })();
+  // side: one gradient band per stacked unit, darkening downward
+  const sideTex = h => {
+    const c = document.createElement('canvas'); c.width = U; c.height = U*h;
+    const g = c.getContext('2d');
+    for (let i=0; i<h; i++){                 // i = units below the summit
+      const v = SKY_SIDE - SKY_STACK*i;
+      const y = i*U;
+      const grd = g.createLinearGradient(0, y, 0, y+U);
+      grd.addColorStop(0, grey(v));
+      grd.addColorStop(1, grey(v*SKY_CREV));  // crevice at the unit's base
+      g.fillStyle = grd; g.fillRect(0, y, U, U);
+      g.fillStyle = 'rgba(120,134,178,0.55)'; // the seam between bricks
+      g.fillRect(0, y, U, 3);
+    }
+    // vertical corner occlusion, and the darkest line where it meets the floor
+    const edge = g.createLinearGradient(0,0,U,0);
+    edge.addColorStop(0,'rgba(120,134,178,0.30)');
+    edge.addColorStop(0.14,'rgba(120,134,178,0)');
+    edge.addColorStop(0.86,'rgba(120,134,178,0)');
+    edge.addColorStop(1,'rgba(120,134,178,0.30)');
+    g.fillStyle = edge; g.fillRect(0,0,U,U*h);
+    g.fillStyle = 'rgba(104,118,162,0.45)'; g.fillRect(0, U*h-4, U, 4);
+    const t = new THREE.CanvasTexture(c); t.anisotropy = 8; return t;
+  };
+
+  const topMat = makeToon({ color:0xffffff, map: topTex });
+  const sideMats = new Map();
+  for (const h of new Set(W.h.values())) sideMats.set(h, makeToon({ color:0xffffff, map: sideTex(h) }));
+  for (const [key, h] of W.h){
+    const [x, z] = key.split(',').map(Number);
+    const side = sideMats.get(h);
+    const m = new THREE.Mesh(new THREE.BoxGeometry(1, h, 1),
+      [side, side, topMat, side, side, side]);
+    m.position.set(x, h/2, z);
+    m.castShadow = true;
+    m.receiveShadow = true;                 // its top is floor: the cube's
+    worldGroup.add(m);                      // contact shadow must land on it
+  }
+}
+
+// gap cells: dark voids sunk into the floor
+{
+  const gapGeo = new THREE.PlaneGeometry(0.94, 0.94);
+  const gapMat = new THREE.MeshBasicMaterial({ color:0x1c1c24 });
+  for (const key of W.gap){
+    const [x,z] = key.split(',').map(Number);
+    const m = new THREE.Mesh(gapGeo, gapMat);
+    m.rotation.x = -Math.PI/2;
+    m.position.set(x, 0.004, z);
+    worldGroup.add(m);
+  }
+}
+// monolith wall + door slab
+const doorSlab = new THREE.Mesh(new THREE.BoxGeometry(0.98, 3.2, 0.6), inkMat);
+{
+  for (const key of W.wall){
+    const [x,z] = key.split(',').map(Number);
+    const gateFace = (z === -22);
+    const h = gateFace ? 3.4 + Math.abs(x)*0.55 + ((Math.abs(x)*7)%3)*0.3
+                       : 1.9 + ((Math.abs(x*3+z)*5)%3)*0.25;
+    const m = new THREE.Mesh(new THREE.BoxGeometry(0.98, h, gateFace ? 0.6 : 0.98), inkMat);
+    m.position.set(x, h/2, z);
+    m.castShadow = true;
+    worldGroup.add(m);
+  }
+  doorSlab.position.set(0, 1.6, -22);
+  doorSlab.castShadow = true;
+  worldGroup.add(doorSlab);
+}
+// shrine + glyph pickups: floor decal, low pedestal, bobbing icon
+function makePickup(x, z, kind){
+  const g = new THREE.Group();
+  const decal = new THREE.Mesh(new THREE.PlaneGeometry(0.92, 0.92),
+    new THREE.MeshBasicMaterial({ map: FACE_TEX[kind], transparent:true, opacity:0.85 }));
+  decal.rotation.x = -Math.PI/2; decal.position.y = 0.006;
+  const icon = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.6),
+    new THREE.MeshBasicMaterial({ map: FACE_TEX[kind], transparent:true, side:THREE.DoubleSide }));
+  icon.position.y = 1.05;
+  icon.rotation.y = 0;
+  g.add(decal, icon);
+  g.position.set(x, 0, z);
+  g.userData = { icon };
+  worldGroup.add(g);
+  return g;
+}
+const shrineMesh = makePickup(W.shrine.x, W.shrine.z, 'fire');
+const glyph2Mesh = makePickup(W.glyph2.x, W.glyph2.z, 'lightning');
+glyph2Mesh.visible = false;                        // revealed when the door opens
+
+// socket: the fire glyph, hollow, pressed into the floor
+{
+  const c = document.createElement('canvas'); c.width = c.height = 256;
+  const g = c.getContext('2d');
+  g.drawImage(FACE_CANVAS.fire, 0, 0);
+  g.globalCompositeOperation = 'saturation';
+  g.fillStyle = '#888'; g.fillRect(0,0,256,256);   // desaturate: a mould, not a flame
+  const sockTex = new THREE.CanvasTexture(c);
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(0.92, 0.92),
+    new THREE.MeshBasicMaterial({ map: sockTex, transparent:true, opacity:0.55 }));
+  m.rotation.x = -Math.PI/2;
+  m.position.set(W.socket.x, 0.006, W.socket.z);
+  worldGroup.add(m);
+}
+// sentries: ink pyramids, base square to the grid. Larger than the cube they
+// hunt, so they read as a threat rather than a prop.
+const TURRET_R = 0.86, TURRET_H = 1.8;
+const TELE_COLOR = 0xb8412a;
+const TURRET_INK = new THREE.Color(0x2e2e38);
+const TELE_RGB = new THREE.Color(TELE_COLOR);
+// Flat normals baked into the geometry (r128's toon material rejects the
+// flatShading flag): non-indexing unshares the vertices, so computed normals
+// are per-face. Each of the four sides then holds ONE toon tone and snaps
+// cleanly to the next as the pyramid spins, instead of a band edge swimming
+// across the face.
+const turretGeo = new THREE.ConeGeometry(TURRET_R, TURRET_H, 4).toNonIndexed();
+turretGeo.computeVertexNormals();
+const teleGeo = new THREE.PlaneGeometry(0.94, 0.94);
+for (const [x, z] of TURRET_SITES){
+  const mesh = new THREE.Mesh(turretGeo, makeToon({ color:0x2e2e38 }));
+  mesh.position.set(x, TURRET_H/2, z);
+  mesh.castShadow = true;
+  worldGroup.add(mesh);
+  const planes = [];
+  for (let i=0;i<5;i++){
+    const m = new THREE.Mesh(teleGeo, new THREE.MeshBasicMaterial({
+      color:TELE_COLOR, transparent:true, opacity:0 }));
+    m.rotation.x = -Math.PI/2; m.position.y = 0.01; m.visible = false;
+    worldGroup.add(m);
+    planes.push(m);
+  }
+  W.turrets.push({ x, z, alive:true, state:'idle', t:0, cells:[],
+                   glow:0, resist:0, spin:Math.random()*Math.PI, mesh, planes });
+}
+
+// colour flood behind the door
+const flood = new THREE.Mesh(new THREE.PlaneGeometry(5.4, 5.4), (() => {
+  const c = document.createElement('canvas'); c.width = 256; c.height = 200;
+  const g = c.getContext('2d');
+  const grd = g.createRadialGradient(128,100,10,128,100,150);
+  grd.addColorStop(0,'rgba(255,150,60,0.5)');
+  grd.addColorStop(0.55,'rgba(255,190,90,0.22)');
+  grd.addColorStop(1,'rgba(255,190,90,0)');
+  g.fillStyle = grd; g.fillRect(0,0,256,200);
+  return new THREE.MeshBasicMaterial({ map:new THREE.CanvasTexture(c), transparent:true, opacity:0 });
+})());
+flood.rotation.x = -Math.PI/2;
+flood.position.set(0, 0.005, -25);
+worldGroup.add(flood);
+
+/* ---------------- named regions ----------------
+   Announced once each, on first entry, the way Elden Ring titles a region:
+   the name is a reward for crossing a threshold, not a map label.          */
+const REGIONS = [
+  // the interior only: walking around the OUTSIDE of the monolith must not
+  // fire the chamber's title — that ground is still the Gauntlet
+  { name:'THE SEALED CHAMBER', test:(x,z) => Math.abs(x) <= 2 && z <= -22 && z >= -27 },
+  { name:'THE GAUNTLET',       test:(x,z) => z <= -12 },
+  { name:'THE BLANK',          test:(x,z) => true },
+];
+const regionOf = (x,z) => REGIONS.find(r => r.test(x,z)).name;
+const announced = new Set();
+let curRegion = null, locT = 0;
+const locEl = document.getElementById('locname');
+function announceRegion(name){
+  announced.add(name);
+  locEl.querySelector('.t').textContent = name;
+  locEl.classList.add('show');
+  locT = 3.4;
+}
+
+/* ---------------- the Keeper ----------------
+   A resident, not a threat: an octahedron — a shape whose movement grammar
+   the player cannot yet read, which is exactly why it gets to be mysterious.
+   It sits off the main column, occupies its cell (dynamically, NEVER via
+   W.wall — structure grows meshes), and speaks in stage-aware lines.       */
+const NPC = { x:3, z:-5, lines:[], idx:0 };
+const npcAt = (x,z) => x === NPC.x && z === NPC.z;
+{
+  // PolyhedronGeometry already ships non-indexed with flat per-face normals,
+  // so unlike the cone it needs no conversion (r128 warns if you try)
+  const g = new THREE.OctahedronGeometry(0.46);
+  NPC.mesh = new THREE.Mesh(g, makeToon({ color:0x2e2e38 }));
+  NPC.mesh.position.set(NPC.x, 0.72, NPC.z);
+  NPC.mesh.castShadow = true;
+  worldGroup.add(NPC.mesh);
+  const lamp = new THREE.PointLight(0xffb469, 0.55, 3.2);   // a private warmth
+  lamp.position.set(NPC.x, 1.1, NPC.z);
+  worldGroup.add(lamp);
+}
+const NPC_LINES = {
+  seek: [
+    'A roller. It has been long since one came through.',
+    'This is the Blank. It keeps nothing and remembers nothing. Yet.',
+    'North of here a glyph still burns. Press yourself upon it, and begin.',
+  ],
+  raise: [
+    'What you carry beneath matters more than what you show.',
+    'The seal past the gauntlet drinks only what is pressed into it, face to stone.',
+    'If the ground will not turn you the way you need — turn yourself. Pivot.',
+  ],
+  travel: [
+    'What you carry beneath matters more than what you show.',
+    'The seal past the gauntlet drinks only what is pressed into it, face to stone.',
+    'If the ground will not turn you the way you need — turn yourself. Pivot.',
+  ],
+  inside: [
+    'The door drank your fire, and gave back colour.',
+    'So the Blank remembers after all.',
+  ],
+  done: [
+    'Two glyphs now. The Blank goes on, and so must you.',
+  ],
+};
+let dialogOpen = false, npcInRange = false;
+const speakEl = document.getElementById('speak');
+const dialogEl = document.getElementById('dialog');
+const dialogLineEl = dialogEl.querySelector('.line');
+const dialogCueEl = document.getElementById('dialogCue');
+function openDialog(){
+  dialogCueEl.textContent = PAD.connected ? 'A TO CONTINUE' : 'TAP TO CONTINUE';
+  NPC.lines = NPC_LINES[W.stage] || NPC_LINES.seek;
+  NPC.idx = 0;
+  dialogOpen = true;
+  dialogEl.classList.add('open');
+  speakEl.classList.remove('on');
+  dialogLineEl.textContent = NPC.lines[0];
+  keys.clear(); stickClear(); setPivotArmed(false);
+}
+function advanceDialog(){
+  NPC.idx++;
+  if (NPC.idx >= NPC.lines.length){
+    dialogOpen = false;
+    dialogEl.classList.remove('open');
+    return;
+  }
+  dialogLineEl.textContent = NPC.lines[NPC.idx];
+}
+speakEl.addEventListener('click', openDialog);
+dialogEl.addEventListener('pointerdown', e => { e.preventDefault(); advanceDialog(); });
+
+// ---------------- HUD helpers ----------------
+const hintEl = document.getElementById('hintEl');
+const bannerEl = document.getElementById('banner');
+const underEl = document.getElementById('underEl');
+const pipEls = [...document.querySelectorAll('#pips i')];
+let hintNow = '';
+function setHint(t){ if (t !== hintNow){ hintNow = t; hintEl.textContent = t; } }
+let bannerT = 0;
+function showBanner(t, hold){
+  bannerEl.textContent = t;
+  bannerEl.classList.add('show');
+  bannerT = hold || 3.5;
+}
+function syncPips(){
+  pipEls.forEach((el, i) => el.classList.toggle('lost', i >= W.integrity));
+}
+function downFaceIndex(){ return FACE_OPPOSITE[upFaceIndex()]; }
+
+// ---------------- events ----------------
+function grantAbility(kind, faceIdx){
+  W.found.add(kind);
+  faceAbility[faceIdx] = kind;
+  applyFaces();
+  hudKey = '';
+  saveLoadout();
+}
+function worldOnGrounded(){
+  const x = Math.round(state.pos.x), z = Math.round(state.pos.z);
+  if (isGap(x, z)){ startFall(); return; }
+
+  if (!W.shrine.taken && x === W.shrine.x && z === W.shrine.z){
+    W.shrine.taken = true;
+    shrineMesh.userData.icon.visible = false;
+    W.anchor.set(x, 0.5, z);
+    grantAbility('fire', downFaceIndex());
+    W.stage = 'raise';
+    showBanner('THE GLYPH SEALS ITSELF TO YOUR UNDERSIDE');
+    lightBurst(state.pos, 0xff7a2a, 3, 0.7, 'fire');
+    ring(state.pos, { r0:0.3, r1:2.0, dur:0.6, opacity:0.4, color:0xff5a1f });
+  }
+  if (W.doorOpen && !W.glyph2.taken && x === W.glyph2.x && z === W.glyph2.z){
+    W.glyph2.taken = true;
+    glyph2Mesh.userData.icon.visible = false;
+    grantAbility('lightning', downFaceIndex());
+    W.stage = 'done';
+    showBanner('A SECOND GLYPH ANSWERS', 5);
+    lightBurst(state.pos, 0x8f9bff, 4, 0.5, 'strobe');
+  }
+  // the socket: fire pressed face-down opens the seal
+  if (!W.doorOpen && x === W.socket.x && z === W.socket.z && faceAbility[downFaceIndex()] === 'fire'){
+    openDoor();
+  }
+}
+function openDoor(){
+  W.doorOpen = true;
+  W.stage = 'inside';
+  glyph2Mesh.visible = true;
+  showBanner('THE BLANK REMEMBERS', 5);
+  camShake = Math.max(camShake, 0.15);   // impact: the seal opening
+  hitStop = Math.max(hitStop, 0.06);
+  flash(0.5, 'rgba(255,170,80,0.5)');
+  ring(new THREE.Vector3(0,0,-22), { r0:0.4, r1:4.5, dur:0.9, opacity:0.5, color:0xff5a1f });
+  emit({ pos:new THREE.Vector3(0, 0.4, -22), count:30, tex:'ember', color:[0xffe9a8,0xffcf6a],
+         colorEnd:0xc23a0c, cPow:0.5, speed:2.6, up:3.2, grav:4, drag:1.2, size:0.12,
+         grow:-0.4, life:1.1, spread:0.8, fade:1.2 });
+}
+function killTurret(T){
+  T.alive = false; T.state = 'idle'; T.glow = 0; T.resist = 0;
+  for (const m of T.planes) m.visible = false;
+  T.mesh.visible = false;                 // T.alive=false frees its cell via turretAt
+  throwDebris(T.x, T.z, 12);
+  mark(new THREE.Vector3(T.x, 0, T.z), 'scorch', 1.4, 0.9, 4);
+  ring(new THREE.Vector3(T.x, 0, T.z), { r0:0.3, r1:2.0, dur:0.5, opacity:0.45, color:TELE_COLOR });
+  camShake = Math.max(camShake, 0.14);   // impact: a sentry cracking
+}
+function worldOnAbility(kind, P){
+  if (kind === 'normal') return;
+  let killed = 0;
+  for (const T of W.turrets){
+    if (!T.alive) continue;
+    if (Math.hypot(P.x - T.x, P.z - T.z) > AOE_R + 0.8) continue;
+    if (kind === 'fire'){ killTurret(T); killed++; }
+    else T.resist = 0.18;                 // wrong element: it shrugs
+  }
+  if (killed){
+    showBanner(killed > 1 ? 'THE SHAPES CRACK' : 'THE SHAPE CRACKS');
+    if (W.turrets.every(T => !T.alive)) setTimeout(() => showBanner('THE APPROACH IS CLEAR'), 900);
+  }
+}
+
+// ---------------- turret brain ----------------
+const TURRET_RANGE = 6.5, TURRET_AIM = 1.5, TURRET_COOL = 1.6;
+const SPIN_IDLE = 0.5, SPIN_AIM = 12.0;   // a slow drift that becomes a whirl
+
+function stepTurret(dt, t){
+  const px = Math.round(state.pos.x), pz = Math.round(state.pos.z);
+  const grounded = state.mode !== 'air' && state.mode !== 'fall';
+  let anyAiming = false;
+
+  for (const T of W.turrets){
+    if (!T.alive) continue;
+    const dist = Math.hypot(px - T.x, pz - T.z);
+    T.glow = Math.max(0, T.glow - dt*2.6);
+    T.resist = Math.max(0, T.resist - dt);
+
+    // spin rate is the readable tell: idle drift, winding to a whirl as it
+    // charges, still unwinding through the cooldown
+    let rate = SPIN_IDLE;
+    if (T.state === 'aim')       rate = SPIN_IDLE + Math.pow(T.t/TURRET_AIM, 1.6)*SPIN_AIM;
+    else if (T.state === 'cool') rate = SPIN_IDLE + 3.5*(1 - T.t/TURRET_COOL);
+    T.spin += dt*rate;
+    T.mesh.rotation.y = T.spin + Math.PI/4;
+    T.mesh.position.y = TURRET_H/2 + 0.05*Math.sin(t*2.1 + T.x);
+
+    if (T.state === 'idle'){
+      if (dist < TURRET_RANGE && state.mode !== 'fall'){
+        if (!W.turretSeen){ W.turretSeen = true; setHint('THEY READ THE SQUARES BEFORE THEY FIRE'); }
+        T.state = 'aim'; T.t = 0;
+        T.cells = [[T.x,T.z],[px,pz],[px+1,pz],[px-1,pz],[px,pz+1],[px,pz-1]]
+          .slice(1).filter(([x,z]) => !isWall(x,z));
+        T.cells.forEach(([x,z], i) => {
+          if (i < T.planes.length){ T.planes[i].position.set(x, H(x,z) + 0.01, z); T.planes[i].visible = true; }
+        });
+      }
+    }
+    else if (T.state === 'aim'){
+      anyAiming = true;
+      T.t += dt;
+      const k = T.t/TURRET_AIM;
+      const pulse = 0.14 + 0.3*k + 0.14*Math.sin(t*(8 + k*14));
+      T.cells.forEach((c, i) => { if (i < T.planes.length) T.planes[i].material.opacity = pulse; });
+      T.glow = Math.max(T.glow, pulse*1.7);
+      if (k >= 1){
+        T.state = 'cool'; T.t = 0;
+        for (const [x,z] of T.cells){
+          ring(new THREE.Vector3(x, 0, z), { r0:0.15, r1:0.62, dur:0.28, opacity:0.7, color:TELE_COLOR });
+          emit({ pos:new THREE.Vector3(x, 0.08, z), count:6, tex:'flat', color:0xd96a3a,
+                 colorEnd:0x7a2a12, speed:1.6, up:2.2, grav:6, drag:1.2, size:0.09,
+                 grow:-0.3, life:0.4, spread:0.3, fade:1.1 });
+        }
+        flash(0.35, 'rgba(190,80,40,0.45)');
+        camShake = Math.max(camShake, 0.05);   // impact: sentry blast
+        T.glow = 1.6;
+        lightBurst(new THREE.Vector3(T.x, 0, T.z), TELE_COLOR, 3.2, 0.45, 'thump', 0.9);
+        for (const m of T.planes) m.visible = false;
+        if (grounded && W.iframes <= 0 && T.cells.some(([x,z]) => x === px && z === pz)) hurt();
+      }
+    }
+    else if (T.state === 'cool'){
+      T.t += dt;
+      if (T.t >= TURRET_COOL) T.state = 'idle';
+    }
+
+    // it wears the colour it casts
+    const gl = Math.min(1.6, T.glow);
+    const m = T.mesh.material;
+    m.color.copy(TURRET_INK).lerp(TELE_RGB, Math.min(0.75, gl*0.55));
+    m.emissive.copy(TELE_RGB).multiplyScalar(gl*0.55);
+    if (T.resist > 0) m.emissive.setRGB(0.28, 0.30, 0.36);
+  }
+  W.anyAiming = anyAiming;
+}
+function hurt(){
+  W.integrity--; W.iframes = 1.0;
+  syncPips();
+  camShake = Math.max(camShake, 0.18);   // impact: taking damage
+  hitStop = Math.max(hitStop, 0.05);
+  state.svel -= 10;
+  flash(0.6, 'rgba(60,60,72,0.5)');
+  if (W.integrity <= 0) respawn();
+}
+function startFall(){
+  state.mode = 'fall';
+  state.vy = 0;
+  setHint('THE FLOOR BREAKS — HOLD A DIRECTION AND TAP TO LEAP');
+}
+function respawn(){
+  state.pos.copy(W.anchor);
+  state.pos.y = H(Math.round(W.anchor.x), Math.round(W.anchor.z)) + 0.5;
+  state.landY = state.pos.y;
+  state.quat.identity();
+  state.mode = 'idle';
+  state.leap = false;
+  state.vy = 0; state.sy = 1; state.svel = 0; state.starget = 1;
+  W.integrity = 3; W.iframes = 1.2;
+  syncPips();
+  camReady = false;
+  camGroundY = H(Math.round(W.anchor.x), Math.round(W.anchor.z));
+  flash(0.8, 'rgba(255,255,255,0.9)');
+}
+
+// ---------------- per-frame ----------------
+function stepWorld(dt, t){
+  if (W.iframes > 0) W.iframes -= dt;
+  if (bannerT > 0){ bannerT -= dt; if (bannerT <= 0) bannerEl.classList.remove('show'); }
+  for (const g of [shrineMesh, glyph2Mesh]){
+    g.userData.icon.position.y = 1.05 + 0.1*Math.sin(t*2.2);
+    g.userData.icon.rotation.y = t*0.8;
+  }
+  if (W.doorOpen && doorSlab.position.y > -1.8){
+    doorSlab.position.y -= dt*1.6;                 // the seal sinks away
+    flood.material.opacity = Math.min(0.9, flood.material.opacity + dt*0.4);
+  }
+  stepTurret(dt, t);
+
+  // region titles: on entering somewhere new (never mid-fall)
+  if (state.mode !== 'fall'){
+    const r = regionOf(Math.round(state.pos.x), Math.round(state.pos.z));
+    if (r !== curRegion){
+      curRegion = r;
+      if (!announced.has(r)) announceRegion(r);
+    }
+  }
+  if (locT > 0){ locT -= dt; if (locT <= 0) locEl.classList.remove('show'); }
+
+  // the Keeper: idle motion, and the offer to speak when adjacent
+  NPC.mesh.position.y = 0.72 + 0.07*Math.sin(t*1.4);
+  NPC.mesh.rotation.y = t*0.35;
+  const nd = Math.hypot(state.pos.x - NPC.x, state.pos.z - NPC.z);
+  const inRange = nd <= 1.6 && state.mode !== 'fall' && !dialogOpen && !equipOpen;
+  if (inRange !== npcInRange){
+    npcInRange = inRange;
+    speakEl.classList.toggle('on', inRange);
+  }
+  if (dialogOpen && nd > 2.4) { dialogOpen = false; dialogEl.classList.remove('open'); }
+
+  underEl.textContent = 'UNDER · ' + ABILITY[faceAbility[downFaceIndex()]].label.toUpperCase();
+  // stage hints (turret aggro overrides via its own setHint)
+  if (!W.anyAiming){
+    // the opening stage says nothing: the shrine's glow is the only prompt,
+    // and finding it unaided is the point
+    if (W.stage === 'seek') setHint('');
+    else if (W.stage === 'raise'){
+      setHint('ROLL TWICE THE SAME WAY — OR PIVOT — TO RAISE WHAT IS UNDER YOU');
+      if (faceAbility[upFaceIndex()] === 'fire') W.stage = 'travel';
+    }
+    else if (W.stage === 'travel') setHint('A SEAL WAITS FOR FIRE PRESSED INTO IT — PIVOT TO CHOOSE YOUR UNDERSIDE');
+    else if (W.stage === 'inside') setHint('THE WAY IS OPEN');
+    else if (W.stage === 'done') setHint('TWO GLYPHS FOUND · THE BLANK GOES ON');
+  }
+}
+
+// ---------------------------------------------------------------- cube state
+const state = {
+  pos: new THREE.Vector3(0, 0.5, 0),
+  quat: new THREE.Quaternion(),
+  mode: 'idle',
+  rt: 0, rDur: ROLL_DUR, rAxis: new THREE.Vector3(),
+  rStart: new THREE.Vector3(), rQuat: new THREE.Quaternion(), rDir: new THREE.Vector3(),
+  rEndY: 0.5, landY: 0.5,
+  ct: 0, vy: 0, armed: 'normal',
+  // airborne leap
+  leap: false, aT: 0, aDir: new THREE.Vector3(),
+  aStart: new THREE.Vector3(), aTarget: new THREE.Vector3(),
+  aQuat0: new THREE.Quaternion(), aAxis: new THREE.Vector3(),
+  jumpBuf: 0,
+  // pivot: a quarter turn in place, so the down face is not hostage to the map
+  kT: 0, kQuat0: new THREE.Quaternion(), kAxis: new THREE.Vector3(),
+  pivotArmed: false, moveLock: false,
+  sy: 1, svel: 0, starget: 1, stiff: 300, damp: 21,
+};
+let camShake = 0, camReady = false, hitStop = 0, camKickY = 0, camKickV = 0;
+let camGroundY = 0;
+const CAM_CLIMB = 4.5;   // how quickly the view settles onto a new terrace
+const camPos = new THREE.Vector3(), camWanted = new THREE.Vector3(),
+      camTarget = new THREE.Vector3(), lookAhead = new THREE.Vector3();
+
+function upFaceIndex(){
+  let best = 0, bd = -2;
+  const v = new THREE.Vector3();
+  for (let i=0;i<6;i++){
+    v.copy(FACE_NORMAL[i]).applyQuaternion(state.quat);
+    if (v.y > bd){ bd = v.y; best = i; }
+  }
+  return best;
+}
+
+function rollEase(t){ return t*t*(2.2 - 1.2*t); }
+
+function startRoll(dir){
+  state.mode = 'roll';
+  state.rt = 0;
+  state.rDir.copy(dir);
+  state.rStart.copy(state.pos);
+  state.rQuat.copy(state.quat);
+  state.rEndY = H(Math.round(state.pos.x + dir.x), Math.round(state.pos.z + dir.z)) + 0.5;
+  state.rAxis.set(dir.z, 0, -dir.x);
+  state.starget = 0.93;
+}
+
+function landRoll(){
+  // snap from the roll start, not the interpolated pose, so nothing drifts
+  state.pos.set(state.rStart.x + state.rDir.x, state.rEndY, state.rStart.z + state.rDir.z);
+  // a step down lands harder
+  if (state.rEndY < state.rStart.y - 0.4) state.svel -= 3.2;
+  tmpQ.setFromAxisAngle(state.rAxis, Math.PI/2);
+  state.quat.multiplyQuaternions(tmpQ, state.rQuat).normalize();
+  state.mode = 'idle';
+  state.starget = 1;
+  state.svel -= 3.4;                       // the landing lives in the squash,
+                                           // never in the camera
+
+  const edge = new THREE.Vector3(state.pos.x - state.rDir.x*0.5, 0.06, state.pos.z - state.rDir.z*0.5);
+  emit({ pos:edge, count:6, tex:'puff', color:[0xd6d2cc,0xe6e2dc], colorEnd:0xf0eeea,
+         speed:1.3, up:0.9, grav:2.2, drag:3.2, size:0.15, grow:1.8, life:0.42, spread:0.5, fade:1.6 });
+
+  if (isBurning()){
+    // a burning cube leaves a trail: scorched floor and shed embers
+    mark(state.pos, 'scorch', 0.95, 0.5, 2.4);
+    emit({ pos:edge, count:5, tex:'ember', color:[0xffd98a,0xffb14d], colorEnd:0xb3300a, cPow:0.5,
+           speed:1.5, up:1.4, grav:4.0, drag:1.4, size:0.1, grow:-0.5, life:0.55, spread:0.4, fade:1.1 });
+  }
+}
+
+function tryJump(){
+  if (dialogOpen) return;
+  if (state.mode !== 'idle'){
+    // mid-roll or mid-air presses aren't thrown away; they fire on landing
+    if (state.mode === 'roll' || state.mode === 'air') state.jumpBuf = JUMP_BUFFER;
+    return;
+  }
+  state.mode = 'crouch';
+  state.ct = 0;
+  state.armed = faceAbility[upFaceIndex()];
+  state.starget = 0.7;
+}
+
+// a roll is refused at walls and gaps with a physical bump, so the tile
+// vocabulary is learned through the body before it is understood
+function tryMove(d){
+  const cx = Math.round(state.pos.x), cz = Math.round(state.pos.z);
+  const tx = cx + Math.round(d.x), tz = cz + Math.round(d.z);
+  // rule 2/3: a ±1 step rolls, a taller difference is a cliff and refuses
+  if (canRoll(tx, tz) && Math.abs(H(tx,tz) - H(cx,cz)) <= 1){ startRoll(d); return true; }
+  state.svel -= 2.2;
+  emit({ pos:new THREE.Vector3(state.pos.x + d.x*0.5, 0.25, state.pos.z + d.z*0.5),
+         count:4, tex:'puff', color:0xd6d2cc, colorEnd:0xefede9, speed:0.8, up:0.6,
+         grav:2, drag:3, size:0.12, grow:1.6, life:0.3, spread:0.3, fade:1.6 });
+  return false;
+}
+
+/*  A cube that can only roll has its underside dictated by the map: in any
+    space too tight to loop, every cell admits exactly ONE down face. The
+    pivot breaks that coupling — a quarter turn in place, no translation —
+    so a face-down requirement can always be met, anywhere.
+
+    It is modal rather than a chord: pressing PIVOT arms it, and the next
+    direction turns in place instead of rolling. Holding a direction would
+    otherwise have already rolled you before the second input arrived.     */
+function startTuck(d){
+  state.mode = 'tuck';
+  state.kT = 0;
+  state.kQuat0.copy(state.quat);
+  state.kAxis.set(d.z, 0, -d.x);
+  state.starget = 0.84;                    // gather, same as a roll
+}
+function setPivotArmed(on){
+  state.pivotArmed = on;
+  pivotEl.classList.toggle('armed', on);
+}
+function handleGroundInput(){
+  const d = desiredDirection();
+  if (!d){ state.moveLock = false; return; }   // released: rolling resumes
+  if (state.moveLock) return;
+  if (state.pivotArmed){
+    setPivotArmed(false);
+    state.moveLock = true;                     // one turn per press
+    startTuck(d);
+    return;
+  }
+  tryMove(d);
+}
+// called the instant the cube is grounded again: a buffered jump wins over
+// continuing to roll, so held-direction movement flows straight into a leap
+function resumeFromGround(){
+  if (state.jumpBuf > 0){ state.jumpBuf = 0; tryJump(); return; }
+  handleGroundInput();
+}
+
+function launch(){
+  state.mode = 'air';
+  state.vy = JUMP_V0;
+  state.aT = 0;
+  state.starget = 1;
+  state.svel += 9.5;
+
+  // direction held through the crouch turns the jump into a two-cell leap
+  let d = desiredDirection();
+  const h0 = H(Math.round(state.pos.x), Math.round(state.pos.z));
+  if (d){
+    const midX = Math.round(state.pos.x + d.x),   midZ = Math.round(state.pos.z + d.z);
+    const endX = Math.round(state.pos.x + d.x*2), endZ = Math.round(state.pos.z + d.z*2);
+    // rule 4: the arc clears +1 of terrain mid-flight, lands on at most +1,
+    // and drops any distance happily
+    if (!canLeapOver(midX, midZ) || isWall(endX, endZ)
+        || H(midX, midZ) > h0 + 1 || H(endX, endZ) > h0 + 1) d = null;
+  }
+  state.leap = !!d;
+  state.landY = d
+    ? H(Math.round(state.pos.x + d.x*LEAP_CELLS), Math.round(state.pos.z + d.z*LEAP_CELLS)) + 0.5
+    : h0 + 0.5;
+  if (d){
+    state.aDir.copy(d);
+    state.aStart.copy(state.pos);
+    state.aTarget.set(state.pos.x + d.x*LEAP_CELLS, state.landY, state.pos.z + d.z*LEAP_CELLS);
+    state.aQuat0.copy(state.quat);
+    state.aAxis.set(d.z, 0, -d.x);
+  }
+  emit({ pos:new THREE.Vector3(state.pos.x, 0.05, state.pos.z), count:11, tex:'puff',
+         color:[0xd6d2cc,0xe8e4de], colorEnd:0xf1efeb, speed:2.0, up:0.7, grav:2.4, drag:3.0,
+         size:0.17, grow:2.0, life:0.5, spread:0.55, fade:1.5 });
+  ring(state.pos, { r0:0.25, r1:1.15, dur:0.4, opacity:0.16, color:0xb9b5af });
+}
+
+function land(){
+  state.pos.y = state.landY;
+  const armedKind = state.armed;
+  const groundY = state.pos.y - 0.5;
+  state.mode = 'idle';
+  state.vy = 0;
+  if (state.leap){
+    // snap from the launch pose so a leap and two rolls agree exactly
+    state.pos.x = state.aTarget.x;
+    state.pos.z = state.aTarget.z;
+    tmpQ.setFromAxisAngle(state.aAxis, (Math.PI/2)*LEAP_CELLS);
+    state.quat.multiplyQuaternions(tmpQ, state.aQuat0).normalize();
+    state.leap = false;
+  }
+  const a = state.armed;
+  const P = state.pos;
+  const flat = new THREE.Vector3(P.x, groundY + 0.05, P.z);
+
+  // every landing kicks dust — the shared vocabulary
+  emit({ pos:flat, count:16, tex:'puff', color:[0xd6d2cc,0xe8e4de,0xcfcbc5], colorEnd:0xf1efeb,
+         speed:2.6, up:0.8, grav:2.2, drag:2.8, size:0.2, grow:2.2, life:0.62, spread:0.6, fade:1.5 });
+
+  if (a === 'normal'){
+    state.svel -= 8;
+    ring(P, { r0:0.3, r1:1.7, dur:0.55, opacity:0.2, color:0xb9b5af });
+    emit({ pos:flat, count:10, tex:'puff', color:0xdad5ce, colorEnd:0xefede9,
+           speed:1.4, up:1.4, grav:0.4, drag:2.2, size:0.26, grow:2.6, life:1.0, spread:0.5, fade:1.9, turb:1.2 });
+  }
+  else if (a === 'fire'){
+    state.svel -= 11;
+    camShake = Math.max(camShake, 0.06);    // impact: fire
+    igniteFireball(P);
+    ignite();                                     // the cube catches, and keeps burning
+    lightBurst(P, 0xff7a2a, 3.6, 0.85, 'fire');
+    flash(0.4, 'rgba(255,150,70,0.45)');
+    ring(P, { r0:0.3, r1:2.6, dur:0.6, opacity:0.5, color:0xff5a1f });
+    ring(P, { r0:0.2, r1:1.7, dur:0.42, opacity:0.45, color:0xffbe4d });
+    mark(P, 'scorch', 1.6, 0.95, 3.2);
+    // embers: white-hot, cool through orange to a dull red, shrinking as they die
+    emit({ pos:flat, count:36, tex:'ember', color:[0xffe9a8,0xffd27a], colorEnd:0xc23a0c, cPow:0.55,
+           speed:3.2, up:3.0, grav:5.2, drag:1.3, size:0.17, grow:-0.65, life:0.9, spread:0.45, fade:1.1 });
+    // licking flames: rise, wander, gutter
+    emit({ pos:flat, count:14, tex:'puff', color:0xff8a2b, colorEnd:0xd23a0c, cPow:0.7,
+           speed:0.9, up:2.4, grav:-2.2, drag:1.8, size:0.3, grow:0.4, life:0.62, spread:0.5, fade:1.4, turb:3.2 });
+    // smoke plume: grows, greys out, drifts
+    emit({ pos:flat, count:14, tex:'puff', color:0x9f978e, colorEnd:0xd8d3cc, cPow:1.4,
+           speed:0.9, up:2.0, grav:-1.5, drag:1.3, size:0.3, grow:3.0, life:1.9, spread:0.55, fade:2.2, turb:1.8 });
+  }
+  else if (a === 'lightning'){
+    state.svel -= 13;
+    camShake = Math.max(camShake, 0.13);    // impact: lightning
+    hitStop = Math.max(hitStop, 0.05);
+    strikeBolt(P.x, P.z);                     // act 1: the bolt; act 2 self-starts
+    lightBurst(P, 0x8f9bff, 7.5, 0.45, 'strobe', 1.8);
+    lightBurst(P, 0x6e7cff, 2.2, 0.6, 'strobe', 0.5);
+    flash(0.9, 'rgba(110,122,255,0.6)');
+    ring(P, { r0:0.25, r1:SPREAD_R*1.15, dur:0.5, opacity:0.4, color:0x3b46e0 });
+    mark(P, 'ion', 1.4, 0.9, 2.0);
+    // vertical splash at the strike point itself
+    emit({ pos:flat, count:26, tex:'flat', color:[0xdfe3ff,0x8f9bff], colorEnd:0x2a35c9, cPow:0.6,
+           speed:4.8, up:4.2, grav:13, drag:0.9, size:0.10, grow:-0.4, life:0.5, spread:0.3, fade:1.1, zap:0.03 });
+    emit({ pos:flat, count:6, tex:'puff', color:0xb9bdd6, colorEnd:0xe4e6f0, cPow:1.3,
+           speed:0.5, up:1.3, grav:-1.2, drag:1.5, size:0.24, grow:2.6, life:1.3, spread:0.3, fade:2.0, turb:1.4 });
+  }
+  else if (a === 'physical'){
+    state.svel -= 17;
+    camShake = Math.max(camShake, 0.2);     // impact: physical
+    hitStop = Math.max(hitStop, 0.07);       // impact frame: the world holds its breath
+    camKickV -= 2.8;                        // camera drops with the blow
+    lightBurst(P, 0xcfc8bd, 1.6, 0.3, 'thump', 0.8);
+    throwDebris(P.x, P.z, 14);
+    ring(P, { r0:0.3, r1:3.0, dur:0.62, opacity:0.4, color:0x3a3a44 });
+    mark(P, 'crater', 1.9, 0.95, 2.8);
+    // rolling dust shockwave: born on a circle, pushed strictly outward
+    emit({ pos:flat, count:40, tex:'puff', color:[0xbdb9b3,0xd8d4ce], colorEnd:0xefede9, cPow:1.2, ringR:0.5,
+           speed:5.2, up:0.55, grav:2.6, drag:2.2, size:0.24, grow:2.4, life:0.75, spread:0.15, fade:1.4 });
+    // vertical plume at the impact
+    emit({ pos:flat, count:16, tex:'puff', color:0xaba69e, colorEnd:0xe3e0da, cPow:1.3,
+           speed:0.9, up:2.8, grav:-0.4, drag:1.6, size:0.28, grow:2.8, life:1.3, spread:0.4, fade:1.8, turb:1.6 });
+    // grit thrown hard and low
+    emit({ pos:flat, count:20, tex:'dot', color:[0x8e897f,0xa6a198], colorEnd:0xc9c4bc,
+           speed:4.4, up:1.8, grav:9, drag:1.1, size:0.09, grow:-0.3, life:0.7, spread:0.4, fade:1.2 });
+  }
+  worldOnAbility(armedKind, P);
+}
+
+// ---------------------------------------------------------------- input
+const keys = new Set();
+addEventListener('keydown', e => {
+  if (e.repeat || equipOpen) return;
+  if (dialogOpen){
+    if (e.key === ' ' || e.key === 'Enter' || e.key.toLowerCase() === 'e'){
+      e.preventDefault(); advanceDialog();
+    }
+    return;
+  }
+  if (e.key.toLowerCase() === 'e' && npcInRange){ e.preventDefault(); openDialog(); return; }
+  const k = e.key.toLowerCase();
+  if (k === ' ' || k === 'spacebar'){ e.preventDefault(); tryJump(); return; }
+  if (k === 'shift'){ e.preventDefault(); setPivotArmed(!state.pivotArmed); return; }
+  keys.add(k);
+});
+addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
+
+function keyVector(){
+  let x = 0, y = 0;
+  if (keys.has('a') || keys.has('arrowleft'))  x -= 1;
+  if (keys.has('d') || keys.has('arrowright')) x += 1;
+  if (keys.has('w') || keys.has('arrowup'))    y += 1;
+  if (keys.has('s') || keys.has('arrowdown'))  y -= 1;
+  return { x, y };
+}
+
+const stickEl = document.getElementById('stick');
+const knobEl  = document.getElementById('knob');
+let stickId = null, stick = { x:0, y:0 };
+const STICK_R = 40;
+/*  The cube can only roll along a world axis, so the stick is locked to one
+    too: whichever component is larger wins and the other is zeroed. The knob
+    slides along the arms of the cross and can never sit at an angle, which is
+    exactly what the D-pad shape promises.                                   */
+function stickSet(e){
+  const r = stickEl.getBoundingClientRect();
+  let dx = e.clientX - (r.left + r.width/2);
+  let dy = e.clientY - (r.top + r.height/2);
+  if (Math.abs(dx) >= Math.abs(dy)) dy = 0; else dx = 0;
+  dx = Math.max(-STICK_R, Math.min(STICK_R, dx));
+  dy = Math.max(-STICK_R, Math.min(STICK_R, dy));
+  knobEl.style.transform = `translate(${dx}px, ${dy}px)`;
+  stick.x = dx/STICK_R; stick.y = -dy/STICK_R;
+}
+function stickClear(){
+  stickId = null; stick.x = stick.y = 0;
+  knobEl.style.transform = '';
+  knobEl.style.borderColor = '';
+}
+stickEl.addEventListener('pointerdown', e => {
+  if (equipOpen || dialogOpen) return;
+  stickId = e.pointerId; stickEl.setPointerCapture(e.pointerId);
+  knobEl.style.borderColor = 'var(--mute)';
+  stickSet(e);
+});
+stickEl.addEventListener('pointermove', e => { if (e.pointerId === stickId) stickSet(e); });
+stickEl.addEventListener('pointerup', e => { if (e.pointerId === stickId) stickClear(); });
+stickEl.addEventListener('pointercancel', stickClear);
+
+const pivotEl = document.getElementById('pivot');
+pivotEl.addEventListener('pointerdown', e => {
+  e.preventDefault();
+  if (equipOpen || dialogOpen) return;
+  setPivotArmed(!state.pivotArmed);
+});
+
+// tap anywhere on the world to jump. The stick and footer are separate DOM
+// elements layered above the canvas, so their taps never reach this handler.
+renderer.domElement.addEventListener('pointerdown', e => {
+  if (equipOpen) return;
+  e.preventDefault();
+  tryJump();
+});
+
+/* ===================== EQUIP ===========================================
+   The cube is shown as an unfolded net so all six faces and their opposite
+   pairings are visible at once, which is the thing that actually matters
+   when choosing a loadout. Edits go to a draft; closing commits.         */
+const equipEl = document.getElementById('equip');
+const equipBtn = document.getElementById('equipBtn');
+const equipDone = document.getElementById('equipDone');
+const netEl = document.getElementById('net');
+const trayEl = document.getElementById('tray');
+const ghostEl = document.getElementById('ghost');
+const equipNote = document.getElementById('equipNote');
+
+// cross net: TOP over FRONT, with LEFT / FRONT / RIGHT / BACK across the middle
+const NET_CELLS = [
+  { face:2, col:2, row:1 },
+  { face:1, col:1, row:2 }, { face:4, col:2, row:2 },
+  { face:0, col:3, row:2 }, { face:5, col:4, row:2 },
+  { face:3, col:2, row:3 },
+];
+let equipOpen = false;
+let draft = faceAbility.slice();
+let drag = null;            // { kind, fromFace }
+let selectedChip = null;
+
+for (const cell of NET_CELLS){
+  const d = document.createElement('div');
+  d.className = 'slot';
+  d.dataset.face = cell.face;
+  d.style.gridColumn = cell.col;
+  d.style.gridRow = cell.row;
+  d.innerHTML = `<span class="ori"></span><span class="tag">${FACE_LABEL[cell.face]}</span>`;
+  netEl.appendChild(d);
+}
+function buildTray(){
+  trayEl.innerHTML = '';
+  const kinds = [...W.found, 'normal'];
+  for (const kind of kinds){
+    const c = document.createElement('div');
+    c.className = 'chip';
+    c.dataset.kind = kind;
+    c.innerHTML = `<span class="sw" style="background-image:url(${FACE_URL[kind]})"></span>` +
+                  `<span class="nm">${kind === 'normal' ? 'CLEAR' : ABILITY[kind].label.toUpperCase()}</span>`;
+    wireDrag(c, () => c.dataset.kind, () => null);
+    trayEl.appendChild(c);
+  }
+}
+const slotEls = [...netEl.querySelectorAll('.slot')];
+
+function renderNet(){
+  for (const el of slotEls){
+    const f = +el.dataset.face, kind = draft[f];
+    el.style.backgroundImage = `url(${FACE_URL[kind]})`;
+    el.classList.toggle('empty', kind === 'normal');
+    // which face is against the floor right now, so a face-down plan is legible
+    el.classList.toggle('up', f === equipUp);
+    el.classList.toggle('down', f === equipDown);
+    el.querySelector('.ori').textContent = f === equipDown ? 'DOWN' : f === equipUp ? 'UP' : '';
+  }
+  const n = draft.filter(k => k !== 'normal').length;
+  const clash = [0,2,4].some(i => draft[i] !== 'normal' && draft[FACE_OPPOSITE[i]] !== 'normal');
+  equipNote.textContent = W.found.size === 0
+    ? 'Nothing found yet. Glyphs are out there in the Blank.'
+    : n === 0
+      ? 'Every face is blank. Drag a found glyph onto one to arm it.'
+      : `${n} of 6 faces armed.` + (clash ? ' Two abilities share an axis, so they can never follow each other in one roll.' : '');
+}
+
+let equipUp = 2, equipDown = 3;
+function openEquip(){
+  equipOpen = true;
+  equipUp = upFaceIndex();
+  equipDown = FACE_OPPOSITE[equipUp];
+  draft = faceAbility.slice();
+  selectedChip = null;
+  buildTray();
+  renderNet();
+  equipEl.classList.add('open');
+  keys.clear();                       // don't hold a roll direction through the menu
+  stickClear();
+}
+function closeEquip(){
+  equipOpen = false;
+  faceAbility = draft.slice();        // committing on close is the save
+  applyFaces();
+  hudKey = '';                        // force the readout to refresh
+  equipBtn.classList.toggle('nudge', faceAbility.every(k => k === 'normal'));
+  equipEl.classList.remove('open');
+  saveLoadout();
+}
+equipBtn.addEventListener('click', openEquip);
+equipDone.addEventListener('click', closeEquip);
+
+// ---- drag and drop, pointer-based so it works on touch as well as mouse
+function slotUnder(x, y){
+  const el = document.elementFromPoint(x, y);
+  return el ? el.closest('.slot') : null;
+}
+function beginDrag(kind, fromFace, x, y){
+  drag = { kind, fromFace };
+  ghostEl.style.backgroundImage = `url(${FACE_URL[kind]})`;
+  ghostEl.style.display = 'block';
+  moveGhost(x, y);
+}
+function moveGhost(x, y){
+  ghostEl.style.left = x + 'px';
+  ghostEl.style.top = y + 'px';
+  const over = slotUnder(x, y);
+  for (const el of slotEls){
+    el.classList.toggle('hover', el === over);
+    el.classList.toggle('opp', !!over && +el.dataset.face === FACE_OPPOSITE[+over.dataset.face]);
+  }
+}
+function endDrag(x, y){
+  const over = slotUnder(x, y);
+  if (over && drag){
+    const to = +over.dataset.face;
+    if (drag.fromFace !== null && drag.fromFace !== to){
+      const tmp = draft[to]; draft[to] = draft[drag.fromFace]; draft[drag.fromFace] = tmp;  // swap
+    } else if (drag.fromFace === null){
+      draft[to] = drag.kind;
+    }
+  } else if (drag && drag.fromFace !== null){
+    draft[drag.fromFace] = 'normal';                       // dragged off the net: clear
+  }
+  drag = null;
+  ghostEl.style.display = 'none';
+  for (const el of slotEls) el.classList.remove('hover','opp');
+  renderNet();
+}
+
+const DRAG_SLOP = 6;   // px of movement before a press counts as a drag
+function wireDrag(el, getKind, getFace){
+  let pending = null;
+  el.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    el.setPointerCapture(e.pointerId);
+    const kind = getKind(), face = getFace();
+    // a blank face has nothing to pick up, but can still receive a tap
+    pending = (kind === 'normal' && face !== null) ? null : { kind, face, x0:e.clientX, y0:e.clientY };
+  });
+  el.addEventListener('pointermove', e => {
+    if (drag){ moveGhost(e.clientX, e.clientY); return; }
+    if (!pending) return;
+    if (Math.hypot(e.clientX - pending.x0, e.clientY - pending.y0) > DRAG_SLOP){
+      beginDrag(pending.kind, pending.face, e.clientX, e.clientY);
+    }
+  });
+  el.addEventListener('pointerup', e => {
+    if (drag){ pending = null; endDrag(e.clientX, e.clientY); return; }
+    pending = null;
+    const face = getFace();
+    if (face === null){
+      // tapped a tray chip: arm it for tap-to-place
+      selectedChip = selectedChip === getKind() ? null : getKind();
+      for (const c of trayEl.children) c.classList.toggle('sel', c.dataset.kind === selectedChip);
+    } else if (selectedChip){
+      draft[face] = selectedChip;
+      renderNet();
+    }
+  });
+  el.addEventListener('pointercancel', () => {
+    pending = null; drag = null; ghostEl.style.display = 'none';
+    for (const s2 of slotEls) s2.classList.remove('hover','opp');
+  });
+}
+for (const el of slotEls) wireDrag(el, () => draft[+el.dataset.face], () => +el.dataset.face);
+
+// ---- optional persistence; absent outside the artifact host, so never assume it
+async function saveLoadout(){
+  try {
+    if (typeof window.storage === 'undefined') return;
+    await window.storage.set('tumble:loadout', JSON.stringify({ faces: faceAbility, found: [...W.found] }));
+  } catch (err) { /* running as a plain file: in-memory only */ }
+}
+async function loadLoadout(){
+  try {
+    if (typeof window.storage === 'undefined') return;
+    const r = await window.storage.get('tumble:loadout');
+    if (!r) return;
+    const v = JSON.parse(r.value);
+    const faces = Array.isArray(v) ? v : (v && v.faces);
+    const found = (v && v.found) || [];
+    if (Array.isArray(found)) for (const k of found) if (ABILITY[k] && k !== 'normal') W.found.add(k);
+    if (Array.isArray(faces) && faces.length === 6 && faces.every(k => ABILITY[k] && (k === 'normal' || W.found.has(k)))){
+      faceAbility = faces;
+      applyFaces();
+      hudKey = '';
+    }
+  } catch (err) { /* no saved loadout */ }
+  equipBtn.classList.toggle('nudge', faceAbility.every(k => k === 'normal'));
+}
+
+/* ===================== GAMEPAD =========================================
+   Polled once per frame rather than event-driven, because the Gamepad API
+   has no input events — navigator.getGamepads() is a snapshot.
+
+   The stick is axis-locked exactly as the D-pad is: the cube only rolls along
+   a world axis, so the larger component wins and the other is discarded. The
+   hat (D-pad buttons) is read too, and beats the analog stick when both are
+   live, since a hat press is unambiguous by construction.
+
+   Buttons are edge-detected against the previous frame's snapshot: the API
+   reports level, and the game needs "was just pressed" for jump and pivot.  */
+const PAD_DEAD = 0.38;              // matches the touch stick's dead zone
+const PAD = { x:0, y:0, prev:new Map(), connected:false, id:'' };
+/*  Standard gamepad mapping indices. A and B are the two verbs the player
+    uses constantly, so they take the two buttons the thumb rests on:
+      A (0) jump — also confirms dialogue and speaks to the Keeper
+      B (1) pivot
+    X/Y and the shoulders are left unbound rather than aliased onto these,
+    so a mis-hit does nothing instead of doing the wrong verb.             */
+const PAD_BTN = {
+  jump:   [0],                      // A / cross — also confirms dialogue
+  pivot:  [1],                      // B / circle
+  speak:  [3],                      // Y / triangle — opens a conversation
+  equip:  [9, 8],                   // start / select
+  up:12, down:13, left:14, right:15,
+};
+function padSet(connected, id){
+  if (PAD.connected === connected) return;
+  PAD.connected = connected;
+  PAD.id = id || '';
+  document.body.classList.toggle('pad', connected);
+  if (!connected){ PAD.x = PAD.y = 0; PAD.prev.clear(); }
+  else { stickClear(); }             // hand over cleanly, no stuck direction
+  // a banner, not setHint: stepWorld rewrites the hint line every frame with
+  // the current stage, so a hint here would be erased before it was read
+  showBanner(connected ? 'CONTROLLER CONNECTED' : 'CONTROLLER DISCONNECTED', 2.2);
+}
+addEventListener('gamepadconnected', e => padSet(true, e.gamepad.id));
+addEventListener('gamepaddisconnected', () => {
+  const list = readPads();
+  padSet(!!list && [...list].some(g => g && g.connected), '');
+});
+/*  The API can EXIST and still throw: inside an iframe whose permissions
+    policy omits "gamepad", getGamepads() raises SecurityError on every call.
+    Feature-detecting the method is therefore not enough — it has to be
+    called once to know. One failure disables polling permanently, otherwise
+    the throw repeats every frame and floods the console.                   */
+let padAvailable = typeof navigator.getGamepads === 'function';
+let padBlocked = false;
+function readPads(){
+  if (!padAvailable) return null;
+  try {
+    return navigator.getGamepads();
+  } catch (err){
+    padAvailable = false;
+    if (!padBlocked){
+      padBlocked = true;
+      console.info('Gamepad unavailable here (blocked by permissions policy); touch and keyboard remain.');
+    }
+    return null;
+  }
+}
+function firstPad(){
+  const list = readPads();
+  if (!list) return null;
+  for (const g of list) if (g && g.connected) return g;
+  return null;
+}
+function pollPad(){
+  if (!padAvailable) return;         // blocked or unsupported: cost is one check
+  const g = firstPad();
+  if (!g){ if (PAD.connected) padSet(false); return; }
+  if (!PAD.connected) padSet(true, g.id);
+
+  // ---- direction: hat first, then the axis-locked analog stick
+  const btn = i => !!(g.buttons[i] && g.buttons[i].pressed);
+  let hx = (btn(PAD_BTN.right) ? 1 : 0) - (btn(PAD_BTN.left) ? 1 : 0);
+  let hy = (btn(PAD_BTN.up) ? 1 : 0) - (btn(PAD_BTN.down) ? 1 : 0);
+  if (hx || hy){
+    if (Math.abs(hx) >= Math.abs(hy)) hy = 0; else hx = 0;
+    PAD.x = hx; PAD.y = hy;
+  } else {
+    let ax = g.axes[0] || 0, ay = -(g.axes[1] || 0);
+    if (Math.abs(ax) >= Math.abs(ay)) ay = 0; else ax = 0;   // one axis only
+    PAD.x = Math.abs(ax) >= PAD_DEAD ? ax : 0;
+    PAD.y = Math.abs(ay) >= PAD_DEAD ? ay : 0;
+  }
+
+  // ---- edge-detected buttons
+  const pressed = i => {
+    const now = btn(i), was = PAD.prev.get(i) || false;
+    PAD.prev.set(i, now);
+    return now && !was;
+  };
+  const anyPressed = list => list.map(pressed).some(Boolean);   // map, not some: poll every button
+
+  const jump = anyPressed(PAD_BTN.jump);
+  const pivot = anyPressed(PAD_BTN.pivot);
+  const speak = anyPressed(PAD_BTN.speak);
+  const equip = anyPressed(PAD_BTN.equip);
+
+  if (dialogOpen){ if (jump || speak) advanceDialog(); return; }
+  if (equipOpen){ if (equip) closeEquip(); return; }
+  if (equip){ openEquip(); return; }
+  // Y opens a conversation; A stays purely a jump, so standing next to the
+  // Keeper no longer swallows the jump button
+  if (speak && npcInRange){ openDialog(); return; }
+  if (jump) tryJump();
+  if (pivot) setPivotArmed(!state.pivotArmed);
+}
+
+// screen-space basis: fixed, because the camera never rotates
+const WORLD_UP = new THREE.Vector3(0,1,0);
+const camFwd = new THREE.Vector3(-CAM_OFFSET.x, 0, -CAM_OFFSET.z).normalize();
+const camRight = new THREE.Vector3().crossVectors(camFwd, WORLD_UP).normalize();
+function desiredDirection(){
+  if (equipOpen || dialogOpen) return null;
+  const k = keyVector();
+  if (PAD.connected && (PAD.x || PAD.y)){ k.x = PAD.x; k.y = PAD.y; }
+  let ix = stick.x, iy = stick.y;
+  if (Math.hypot(ix, iy) < 0.36){ ix = k.x; iy = k.y; }
+  if (Math.hypot(ix, iy) < 0.36) return null;
+  const d = new THREE.Vector3()
+    .addScaledVector(camRight, ix)
+    .addScaledVector(camFwd, iy);
+  d.y = 0;
+  if (d.lengthSq() < 1e-6) return null;
+  return Math.abs(d.x) >= Math.abs(d.z)
+    ? new THREE.Vector3(Math.sign(d.x), 0, 0)
+    : new THREE.Vector3(0, 0, Math.sign(d.z));
+}
+
+/* ===================== CAMERA DEBUG ====================================
+   The camera orientation is baked into six places at startup (VIEW_DIR, the
+   fire billboard basis, the impact quad's yaw, and the input basis), because
+   it normally never changes. Anything that moves it live has to rebuild all
+   of them, which is what recomputeCameraBasis does.                       */
+const CAM_DEFAULTS = (() => {
+  const h = Math.hypot(CAM_OFFSET.x, CAM_OFFSET.z);
+  return {
+    yaw: Math.atan2(CAM_OFFSET.x, CAM_OFFSET.z)*180/Math.PI,
+    pitch: Math.atan2(CAM_OFFSET.y, h)*180/Math.PI,
+    dist: CAM_OFFSET.length(),
+    fov: camera.fov,
+    aim: camLookY,
+    fogN: scene.fog.near,
+    fogF: scene.fog.far,
+  };
+})();
+const camCfg = { ...CAM_DEFAULTS };
+
+function recomputeCameraBasis(){
+  VIEW_DIR.copy(CAM_OFFSET).normalize();
+  camFwd.set(-CAM_OFFSET.x, 0, -CAM_OFFSET.z).normalize();
+  camRight.crossVectors(camFwd, WORLD_UP).normalize();
+  SCR_RIGHT.crossVectors(WORLD_UP, VIEW_DIR).normalize();
+  SCR_UP.crossVectors(VIEW_DIR, SCR_RIGHT).normalize();
+  burst.mesh.rotation.y = Math.atan2(CAM_OFFSET.x, CAM_OFFSET.z);
+}
+
+function applyCam(){
+  const yaw = camCfg.yaw*Math.PI/180, pitch = camCfg.pitch*Math.PI/180;
+  const h = camCfg.dist*Math.cos(pitch);
+  CAM_OFFSET.set(h*Math.sin(yaw), camCfg.dist*Math.sin(pitch), h*Math.cos(yaw));
+  camLookY = camCfg.aim;
+  camera.fov = camCfg.fov;
+  camera.updateProjectionMatrix();
+  scene.fog.near = camCfg.fogN;
+  scene.fog.far = Math.max(camCfg.fogN + 5, camCfg.fogF);
+  recomputeCameraBasis();
+  camReady = false;                       // let the rig snap to the new pose
+  writeCamOut();
+}
+
+const camDbgEl = document.getElementById('camdbg');
+const camOutEl = document.getElementById('camOut');
+const CAM_SLIDERS = [
+  ['cYaw','vYaw','yaw',  v => v.toFixed(1)+'°'],
+  ['cPit','vPit','pitch',v => v.toFixed(1)+'°'],
+  ['cDst','vDst','dist', v => v.toFixed(1)],
+  ['cFov','vFov','fov',  v => v.toFixed(1)],
+  ['cAim','vAim','aim',  v => v.toFixed(2)],
+  ['cFgN','vFgN','fogN', v => v.toFixed(0)],
+  ['cFgF','vFgF','fogF', v => v.toFixed(0)],
+];
+function syncCamUI(){
+  for (const [sid, vid, key, fmt] of CAM_SLIDERS){
+    document.getElementById(sid).value = camCfg[key];
+    document.getElementById(vid).textContent = fmt(camCfg[key]);
+  }
+}
+function writeCamOut(){
+  const o = CAM_OFFSET;
+  const viewH = 2*camCfg.dist*Math.tan(camCfg.fov/2*Math.PI/180);
+  camOutEl.textContent =
+`CAM_OFFSET = (${o.x.toFixed(2)}, ${o.y.toFixed(2)}, ${o.z.toFixed(2)})
+FOV        = ${camCfg.fov}
+AIM Y      = ${camCfg.aim}
+FOG        = ${camCfg.fogN}, ${Math.max(camCfg.fogN+5, camCfg.fogF)}
+— yaw ${camCfg.yaw.toFixed(1)}° pitch ${camCfg.pitch.toFixed(1)}° dist ${camCfg.dist.toFixed(1)}
+— view height ${viewH.toFixed(1)} units`;
+}
+for (const [sid, vid, key, fmt] of CAM_SLIDERS){
+  document.getElementById(sid).addEventListener('input', e => {
+    camCfg[key] = parseFloat(e.target.value);
+    document.getElementById(vid).textContent = fmt(camCfg[key]);
+    applyCam();
+  });
+}
+document.getElementById('camBtn').addEventListener('click', () => {
+  camDbgEl.classList.toggle('open');
+});
+document.getElementById('camReset').addEventListener('click', () => {
+  Object.assign(camCfg, CAM_DEFAULTS);
+  syncCamUI(); applyCam();
+});
+document.getElementById('camCopy').addEventListener('click', async () => {
+  const btn = document.getElementById('camCopy');
+  try { await navigator.clipboard.writeText(camOutEl.textContent); btn.textContent = 'COPIED'; }
+  catch (err) {
+    // clipboard blocked: select the text so it can be copied by hand
+    const r = document.createRange();
+    r.selectNodeContents(camOutEl);
+    const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
+    btn.textContent = 'SELECTED';
+  }
+  setTimeout(() => { btn.textContent = 'COPY'; }, 1200);
+});
+addEventListener('keydown', e => {
+  if (e.key === '`' && !equipOpen) camDbgEl.classList.toggle('open');
+});
+syncCamUI(); writeCamOut();
+
+// ---------------------------------------------------------------- HUD
+const swEl = document.getElementById('sw'), nmEl = document.getElementById('nm'), sbEl = document.getElementById('sb');
+const burnEl = document.getElementById('burn'), bfillEl = document.getElementById('bfill'), btickEl = document.getElementById('btick');
+let hudKey = '';
+function updateHud(key){
+  if (key === hudKey) return;
+  hudKey = key;
+  const a = ABILITY[key];
+  swEl.style.background = a.css;
+  swEl.style.transform = 'scale(1.35)';
+  setTimeout(() => { swEl.style.transform = ''; }, 150);
+  nmEl.textContent = a.label;
+  nmEl.style.color = key === 'normal' ? '#22222a' : a.css;
+  sbEl.textContent = a.line;
+}
+
+// ---------------------------------------------------------------- loop
+const clock = new THREE.Clock();
+const tmpQ = new THREE.Quaternion();
+const tmpV = new THREE.Vector3();
+
+function tick(){
+  requestAnimationFrame(tick);
+  const rawDt = Math.min(clock.getDelta(), 1/30);
+  const t = clock.elapsedTime;
+
+  // hit-stop: the whole sim runs at 12% for a few frames; camera shake and
+  // light flicker keep real time so the freeze still feels alive
+  let dt = rawDt;
+  if (hitStop > 0){ hitStop -= rawDt; dt = rawDt*0.12; }
+
+  // ---- state machine
+  if (state.mode === 'idle'){
+    handleGroundInput();
+  }
+  else if (state.mode === 'tuck'){
+    state.kT += dt;
+    const p = Math.min(1, state.kT/TUCK_DUR);
+    const gy = H(Math.round(state.pos.x), Math.round(state.pos.z)) + 0.5;
+    state.pos.y = gy + Math.sin(p*Math.PI)*TUCK_LIFT;
+    const rp = smoothstep01(Math.max(0, Math.min(1, (p - 0.12)/0.76)));
+    tmpQ.setFromAxisAngle(state.kAxis, rp*Math.PI/2);
+    state.quat.multiplyQuaternions(tmpQ, state.kQuat0);
+    if (p > 0.2 && state.starget < 1) state.starget = 1;
+    if (p >= 1){
+      state.pos.y = gy;
+      tmpQ.setFromAxisAngle(state.kAxis, Math.PI/2);
+      state.quat.multiplyQuaternions(tmpQ, state.kQuat0).normalize();
+      state.mode = 'idle';
+      state.svel -= 4.0;
+      emit({ pos:new THREE.Vector3(state.pos.x, 0.05, state.pos.z), count:7, tex:'puff',
+             color:[0xd6d2cc,0xe6e2dc], colorEnd:0xf0eeea, speed:1.5, up:0.7,
+             grav:2.2, drag:3.0, size:0.15, grow:1.8, life:0.4, spread:0.5, fade:1.6 });
+      worldOnGrounded();
+      if (state.mode === 'idle') resumeFromGround();
+    }
+  }
+  else if (state.mode === 'roll'){
+    state.rt += dt;
+    const k = Math.min(1, state.rt/state.rDur);
+    const e = rollEase(k);
+    const ang = e * Math.PI/2;
+    tmpQ.setFromAxisAngle(state.rAxis, ang);
+    /*  Position is parametric rather than pivot-derived, because a unit cube
+        cannot physically climb a unit step in one quarter-pivot (it takes
+        two). The GRAMMAR stays one-quarter-turn-per-cell — the same tmpQ as
+        on flat ground, so all orientation math and the seal puzzle hold —
+        and the body lifts through the step on a sine arc. On flat ground
+        the 0.21 lift matches the old pivot arc's apex, so nothing changed
+        visually there.                                                     */
+    const lift = 0.21 + 0.24*Math.max(0, state.rEndY - state.rStart.y);
+    state.pos.x = state.rStart.x + state.rDir.x*e;
+    state.pos.z = state.rStart.z + state.rDir.z*e;
+    state.pos.y = state.rStart.y + (state.rEndY - state.rStart.y)*e + lift*Math.sin(e*Math.PI);
+    state.quat.multiplyQuaternions(tmpQ, state.rQuat);
+    if (k > 0.22 && state.starget < 1) state.starget = 1;
+    if (k >= 1){
+      landRoll();
+      worldOnGrounded();
+      if (state.mode === 'idle') resumeFromGround();
+    }
+  }
+  else if (state.mode === 'fall'){
+    state.vy -= GRAV*1.4*dt;
+    state.pos.y += state.vy*dt;
+    if (state.pos.y < -3.5) respawn();
+  }
+  else if (state.mode === 'crouch'){
+    state.ct += dt;
+    if (state.ct >= CROUCH_DUR) launch();
+  }
+  else if (state.mode === 'air'){
+    const g = (Math.abs(state.vy) < HANG_ZONE) ? GRAV*HANG_MUL : GRAV;
+    state.vy -= g*dt;
+    state.pos.y += state.vy*dt;
+    state.aT += dt;
+    if (state.leap){
+      // horizontal travel is linear, as a real projectile's is
+      const p = Math.min(1, state.aT/FLIGHT_DUR);
+      state.pos.x = state.aStart.x + (state.aTarget.x - state.aStart.x)*p;
+      state.pos.z = state.aStart.z + (state.aTarget.z - state.aStart.z)*p;
+      // the tumble holds for a beat, then finishes before touchdown so the
+      // cube is already flat when it lands and the squash can do its job
+      const rp = Math.max(0, Math.min(1, (p - 0.08)/0.80));
+      tmpQ.setFromAxisAngle(state.aAxis, smoothstep01(rp)*(Math.PI/2)*LEAP_CELLS);
+      state.quat.multiplyQuaternions(tmpQ, state.aQuat0);
+    }
+    if (state.pos.y <= state.landY && state.vy < 0){
+      land();
+      worldOnGrounded();
+      if (state.mode === 'idle') resumeFromGround();
+    }
+  }
+
+  if (state.jumpBuf > 0) state.jumpBuf = Math.max(0, state.jumpBuf - dt);
+
+  // ---- squash spring
+  const acc = -state.stiff*(state.sy - state.starget) - state.damp*state.svel;
+  state.svel += acc*dt;
+  state.sy   += state.svel*dt;
+  state.sy = Math.max(0.45, Math.min(1.55, state.sy));
+
+  let sy = state.sy;
+  if (state.mode === 'air') sy *= 1 + Math.max(-0.18, Math.min(0.26, state.vy*0.035));
+  const sxz = 1/Math.sqrt(Math.max(0.2, sy));
+
+  const height = Math.max(0, state.pos.y - 0.5);
+  const kAnchor = Math.min(1, height/0.45);
+  cubeRig.position.set(state.pos.x, state.pos.y*(kAnchor + (1-kAnchor)*sy), state.pos.z);
+  cubeRig.scale.set(sxz, sy, sxz);
+  cube.quaternion.copy(state.quat);
+
+  // ---- burning status
+  const cubeBaseY = Math.max(0, cubeRig.position.y - 0.5*sy);
+  const bi = stepBurn(dt, t, cubeBaseY);
+  if (burn.dur > 0){
+    burnEl.classList.add('on');
+    bfillEl.style.transform = `scaleX(${(1 - burn.t/burn.dur).toFixed(3)})`;
+  } else if (bi <= 0){
+    burnEl.classList.remove('on');
+  }
+
+  // ---- armed face + telegraph
+  const faceKey = faceAbility[upFaceIndex()];
+  const shown = (state.mode === 'crouch' || state.mode === 'air') ? state.armed : faceKey;
+  updateHud(shown);
+
+  // char + cooling glow: the cube blackens, then glows down like hot metal
+  const charK = burn.char*0.72;
+  const emberFlicker = 0.82 + 0.18*Math.sin(t*24.0) + 0.08*Math.sin(t*9.3);
+  const heatE = burn.heat*0.5*emberFlicker;
+  for (let i=0;i<6;i++){
+    const m = cubeMats[i];
+    m.color.setRGB(1 - charK*0.72, 1 - charK*0.82, 1 - charK*0.88);
+    m.emissive.setRGB(heatE, heatE*0.28, heatE*0.05);
+  }
+  const upi = upFaceIndex();
+  if (faceAbility[upi] !== 'normal'){
+    const pulse = 0.10 + 0.05*Math.sin(t*5.5);
+    const c = new THREE.Color(ABILITY[faceAbility[upi]].color).multiplyScalar(pulse);
+    cubeMats[upi].emissive.add(c);
+  }
+  glow.position.set(state.pos.x, 0.012, state.pos.z);
+  const wantGlow = shown === 'normal' ? 0 : (state.mode === 'crouch' ? 0.4 : 0.17 + 0.05*Math.sin(t*5.5));
+  glow.material.opacity += (wantGlow - glow.material.opacity) * Math.min(1, rawDt*9);
+  glow.material.color.setHex(ABILITY[shown === 'normal' ? 'normal' : shown].color);
+  glow.scale.setScalar(1 + height*0.35);
+
+  // ---- fx (sim time)
+  stepParticles(dt, t);
+  stepRings(dt);
+  stepMarks(dt);
+  pollPad();
+  stepWorld(dt, t);
+  stepBolt(dt, t);
+  stepSpread(dt, t, rawDt);
+  stepFireball(dt, t);
+  stepCracksNoop();
+  stepDebris(dt);
+  // lights run on REAL time so flicker survives the hit-stop
+  stepLights(rawDt, t);
+
+  flashV *= Math.exp(-9*rawDt);
+  flashEl.style.opacity = flashV.toFixed(3);
+
+  // ---- camera
+  // resting ground under the cube: the destination of whatever move is in
+  // flight, so it steps once per terrace instead of tracking the arc
+  const restY =
+      state.mode === 'roll' ? state.rEndY - 0.5
+    : (state.mode === 'air' || state.mode === 'crouch') ? state.landY - 0.5
+    : state.mode === 'fall' ? camGroundY
+    : H(Math.round(state.pos.x), Math.round(state.pos.z));
+  camGroundY += (restY - camGroundY) * (1 - Math.exp(-CAM_CLIMB*dt));
+
+  /*  The camera's horizontal input is LINEAR roll progress, never the eased
+      cube. rollEase makes the cube's velocity pulse 0 -> 7.1 -> 4.2 -> 0
+      every single roll; a 5.26Hz pulse sails through the follow filter and
+      reads as directional shaking. The ease is the CUBE's animation — the
+      camera tracks the underlying constant-rate motion, so chained rolls
+      produce perfectly uniform pursuit. Leaps and jumps are already linear
+      horizontally, and the pivot does not translate.                       */
+  const camFollowX = state.mode === 'roll'
+    ? state.rStart.x + state.rDir.x*Math.min(1, state.rt/state.rDur)
+    : state.pos.x;
+  const camFollowZ = state.mode === 'roll'
+    ? state.rStart.z + state.rDir.z*Math.min(1, state.rt/state.rDur)
+    : state.pos.z;
+
+  /*  The camera follows the GROUND under the cube, never the cube's own y.
+      state.pos.y carries the roll's arc lift and the jump, so tracking it
+      bobbed the view on every single roll. The terrain height is a step
+      function — flat ground holds it perfectly still — and it is eased so
+      that climbing a terrace is a slow rise rather than a snap.           */
+  camTarget.set(camFollowX, camGroundY, camFollowZ);
+  const aim = (state.mode === 'roll') ? state.rDir : (state.leap ? state.aDir : null);
+  lookAhead.lerp(aim ? tmpV.copy(aim).multiplyScalar(0.85) : tmpV.set(0,0,0), Math.min(1, dt*4));
+  camTarget.add(lookAhead);
+
+  camWanted.copy(camTarget).add(CAM_OFFSET);
+
+  if (!camReady){ camPos.copy(camWanted); camReady = true; }
+  camPos.lerp(camWanted, 1 - Math.exp(-5.2*dt));
+
+  // vertical kick spring: the camera dips with heavy hits, then recovers
+  camKickV += (-90*camKickY - 12*camKickV)*rawDt;
+  camKickY += camKickV*rawDt;
+
+  camShake *= Math.exp(-7.5*rawDt);
+  if (camShake < 0.004) camShake = 0;      // no sub-pixel dither tail
+  camera.position.set(
+    camPos.x + (Math.random()-0.5)*camShake,
+    camPos.y + camKickY + (Math.random()-0.5)*camShake,
+    camPos.z + (Math.random()-0.5)*camShake
+  );
+  camera.lookAt(camTarget.x, camTarget.y + camLookY, camTarget.z);
+
+  // key light from screen-left and slightly forward, so the contact shadow
+  // sweeps across the grid to the right instead of hiding behind the cube
+  sun.position.set(state.pos.x - 8.0, 10.5, state.pos.z + 1.0);
+  sun.target.position.set(state.pos.x, 0, state.pos.z);
+  sun.target.updateMatrixWorld();
+
+  // the floor rides along, snapped to whole tiles so the lines stay put
+  ground.position.x = Math.round(state.pos.x/GRID_PERIOD)*GRID_PERIOD;
+  ground.position.z = Math.round(state.pos.z/GRID_PERIOD)*GRID_PERIOD;
+
+  renderer.render(scene, camera);
+}
+function stepCracksNoop(){ /* cracks are baked into the crater decal now */ }
+
+updateHud('normal');
+equipBtn.classList.add('nudge');
+loadLoadout();
+tick();
+</script>
+</body>
+</html>
