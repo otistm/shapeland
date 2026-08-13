@@ -36,6 +36,19 @@ export function hashU32s(nums: readonly number[]): number {
   return h;
 }
 
+const F64_BUF = new ArrayBuffer(8);
+const F64_VIEW = new DataView(F64_BUF);
+const F64_BYTES = new Uint8Array(F64_BUF);
+
+/** Hash an IEEE-754 double. Rejects NaN; normalizes −0. */
+export function fnv1aF64(h: number, n: number): number {
+  if (Number.isNaN(n)) throw new Error("NaN cannot be hashed");
+  F64_VIEW.setFloat64(0, n === 0 ? 0 : n, true);
+  let acc = h;
+  for (let i = 0; i < 8; i++) acc = fnv1aU8(acc, F64_BYTES[i] ?? 0);
+  return acc;
+}
+
 export function hex32(n: number): string {
   return (n >>> 0).toString(16).padStart(8, "0");
 }

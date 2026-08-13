@@ -1,3 +1,15 @@
+import {
+  BUTTON_E,
+  BUTTON_N,
+  BUTTON_S,
+  BUTTON_W,
+  DIR_E,
+  DIR_N,
+  DIR_NONE,
+  DIR_S,
+  DIR_W,
+} from "./constants";
+
 export interface InputEvent {
   tick: number;
   mask: number;
@@ -32,4 +44,15 @@ export function cloneLog(log: InputLog): InputLog {
     if (ev) out.push({ tick: ev.tick, mask: ev.mask });
   }
   return out;
+}
+
+/** Dominant cardinal from a held mask. Opposites cancel. No analog diagonals. */
+export function dirFromMask(mask: number): number {
+  const x = ((mask & BUTTON_E) !== 0 ? 1 : 0) - ((mask & BUTTON_W) !== 0 ? 1 : 0);
+  const z = ((mask & BUTTON_S) !== 0 ? 1 : 0) - ((mask & BUTTON_N) !== 0 ? 1 : 0);
+  if (x === 0 && z === 0) return DIR_NONE;
+  const ax = x < 0 ? -x : x;
+  const az = z < 0 ? -z : z;
+  if (ax >= az) return x > 0 ? DIR_E : DIR_W;
+  return z > 0 ? DIR_S : DIR_N;
 }

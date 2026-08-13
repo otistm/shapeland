@@ -7,6 +7,7 @@ export const MAX_FRAME = 0.25;
 export const MAX_STEPS = 8;
 
 export const ROLL_DUR = 0.19;
+export const CROUCH_DUR = 0.14;
 export const JUMP_V0 = 7.6;
 export const GRAV = 25;
 export const HANG = 2.3;
@@ -15,6 +16,14 @@ export const FLIGHT_DUR = 0.72;
 export const LEAP_CELLS = 2;
 export const JUMP_BUFFER = 0.2;
 export const TUCK_DUR = 0.34;
+export const TUCK_LIFT = 0.3;
+export const ROLL_LIFT = 0.21;
+export const ROLL_LIFT_STEP = 0.24;
+export const SQUASH_STIFF = 300;
+export const SQUASH_DAMP = 21;
+export const FALL_GRAV_MUL = 1.4;
+export const FALL_KILL_Y = -3.5;
+export const CLIFF_DELTA = 2;
 
 export const CAM_OFFSET = [0, 8, 15.45] as const;
 export const CAM_FOV = 42;
@@ -64,6 +73,10 @@ export const FOG_COLOR = 0xffffff;
 
 export const JUMP_BUFFER_TICKS = 24;
 export const ROLL_TICKS = 23;
+export const CROUCH_TICKS = 17;
+export const TUCK_TICKS = 41;
+/** 120Hz hang-zone integrator; ~0.717s, matching FLIGHT_DUR ≈ 0.72. */
+export const FLIGHT_TICKS = 86;
 
 export const BUTTON_E = 1 << 0;
 export const BUTTON_W = 1 << 1;
@@ -71,3 +84,24 @@ export const BUTTON_N = 1 << 2;
 export const BUTTON_S = 1 << 3;
 export const BUTTON_JUMP = 1 << 4;
 export const BUTTON_PIVOT = 1 << 5;
+
+export const DIR_NONE = 0;
+export const DIR_E = 1;
+export const DIR_W = 2;
+export const DIR_N = 3;
+export const DIR_S = 4;
+export const DIR_DX = [0, 1, -1, 0, 0] as const;
+export const DIR_DZ = [0, 0, 0, -1, 1] as const;
+
+export const MODE_IDLE = 0;
+export const MODE_ROLL = 1;
+export const MODE_TUCK = 2;
+export const MODE_CROUCH = 3;
+export const MODE_AIR = 4;
+export const MODE_FALL = 5;
+
+export const FLAG_REFUSE = 1 << 0;
+export const FLAG_LAND = 1 << 1;
+export const FLAG_LAND_DOWN = 1 << 2;
+export const FLAG_LAUNCH = 1 << 3;
+export const FLAG_PIVOT = 1 << 4;

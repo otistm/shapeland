@@ -54,12 +54,12 @@ describe("replay", () => {
     expect(report.inputLog).toEqual(log);
   });
 
-  it("layered hashes diverge on the input layer when the log changes", () => {
+  it("layered hashes diverge on the player layer when a roll is held", () => {
     const idle = recordReplay(SEED, CONTENT, 30, [], 1);
     const held = recordReplay(SEED, CONTENT, 30, [{ tick: 1, mask: BUTTON_E }], 1);
     const lastIdle = idle.tickHashes[idle.tickHashes.length - 1];
     const lastHeld = held.tickHashes[held.tickHashes.length - 1];
-    expect(lastIdle?.hashes.player).toBe(lastHeld?.hashes.player);
+    expect(lastIdle?.hashes.player).not.toBe(lastHeld?.hashes.player);
     expect(lastIdle?.hashes.input).not.toBe(lastHeld?.hashes.input);
     expect(lastIdle?.hashes.total).not.toBe(lastHeld?.hashes.total);
   });

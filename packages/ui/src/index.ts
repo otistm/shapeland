@@ -40,11 +40,12 @@ export function mountHud(host: HTMLElement): HudHandle {
         el.style.background = i < snapshot.integrity ? CUBE_BODY : "transparent";
       }
       log.textContent = [
-        "SHAPELAND  ·  phase 1",
+        "SHAPELAND  ·  phase 2",
         backend ? `backend       ${backend}` : "",
         `tick           ${snapshot.tick}`,
         `alpha          ${alpha.toFixed(3)}`,
         `cell           ${snapshot.player.x},${snapshot.player.y},${snapshot.player.z}  ori ${snapshot.player.orientation}`,
+        `mode           ${snapshot.move.mode}  dir ${snapshot.move.dir}  phase ${snapshot.move.phase}`,
         `hash           ${hex32(snapshot.hashes.total)}`,
       ]
         .filter((line) => line !== "")

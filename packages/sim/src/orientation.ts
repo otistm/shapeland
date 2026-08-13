@@ -51,6 +51,15 @@ export function rollToward(orientation: number, dir: Cardinal): number {
   return at(DIRS[dir].roll, orientation);
 }
 
+const ROLL_BY_DIR = [ROLL_E, ROLL_E, ROLL_W, ROLL_N, ROLL_S] as const;
+
+/** `dir` is DIR_E..DIR_S. */
+export function rollTowardDir(orientation: number, dir: number): number {
+  const table = ROLL_BY_DIR[dir];
+  if (!table || dir < 1) throw new Error(`not a cardinal: ${dir}`);
+  return at(table, orientation);
+}
+
 export function parityOf(orientation: number): number {
   return at(PARITY, orientation);
 }

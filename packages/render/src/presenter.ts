@@ -25,6 +25,7 @@ import {
   Color,
   DirectionalLight,
   Fog,
+  Group,
   HemisphereLight,
   Mesh,
   NeutralToneMapping,
@@ -40,7 +41,8 @@ import { createCameraRig, lookAtY, stepCamera } from "./camera";
 import { bakeFaceTextures } from "./faces";
 import { toNonIndexedFacets } from "./geometry";
 import { type InterpolatedFrame, interpolate } from "./interpolate";
-import { SIM_FACE_FOR_GROUP, orientationQuaternion } from "./orientation-map";
+import { SIM_FACE_FOR_GROUP } from "./orientation-map";
+import { createSquash, stepSquash } from "./squash";
 import { makeToon } from "./toon";
 
 export type RenderBackend = "webgpu" | "webgl2";
@@ -144,7 +146,10 @@ export async function createGamePresenter(
   const cube = new Mesh(toNonIndexedFacets(new BoxGeometry(1, 1, 1)), cubeMats);
   cube.castShadow = true;
   cube.receiveShadow = false;
-  scene.add(cube);
+  const cubeRig = new Group();
+  cubeRig.add(cube);
+  scene.add(cubeRig);
+  const squash = createSquash();
 
   const resize = (width: number, height: number) => {
     const w = Math.max(1, width);
@@ -162,9 +167,9 @@ export async function createGamePresenter(
       stepCamera(
         rig,
         {
-          followX: cur.player.x,
-          followZ: cur.player.z,
-          restY: cur.player.y,
+          followX: frame.camera.followX,
+          followZ: frame.camera.followZ,
+          restY: frame.camera.restY,
           dt,
         },
         camReady,
@@ -172,15 +177,33 @@ export async function createGamePresenter(
       camera.position.set(rig.position.x, rig.position.y, rig.position.z);
       camera.lookAt(rig.target.x, lookAtY(rig), rig.target.z);
 
-      cube.position.set(frame.player.x, frame.player.y + 0.5, frame.player.z);
-      const q = orientationQuaternion(cur.player.orientation);
-      cube.quaternion.set(q.x, q.y, q.z, q.w);
+      const { sy, sxz } = stepSquash(
+        squash,
+        cur.move.mode,
+        cur.move.phase,
+        cur.move.flags,
+        cur.move.vy,
+        dt,
+      );
+      const height = Math.max(0, frame.player.y - 0.5);
+      const kAnchor = Math.min(1, height / 0.45);
+      cubeRig.position.set(
+        frame.player.x,
+        frame.player.y * (kAnchor + (1 - kAnchor) * sy),
+        frame.player.z,
+      );
+      cubeRig.scale.set(sxz, sy, sxz);
+      cube.quaternion.set(frame.player.qx, frame.player.qy, frame.player.qz, frame.player.qw);
 
-      sun.position.set(cur.player.x + KEY_LIGHT[0], KEY_LIGHT[1], cur.player.z + KEY_LIGHT[2]);
-      sun.target.position.set(cur.player.x, 0, cur.player.z);
+      sun.position.set(
+        frame.camera.followX + KEY_LIGHT[0],
+        KEY_LIGHT[1],
+        frame.camera.followZ + KEY_LIGHT[2],
+      );
+      sun.target.position.set(frame.camera.followX, frame.camera.restY, frame.camera.followZ);
       sun.target.updateMatrixWorld();
-      ground.position.x = Math.round(cur.player.x / GRID_PERIOD) * GRID_PERIOD;
-      ground.position.z = Math.round(cur.player.z / GRID_PERIOD) * GRID_PERIOD;
+      ground.position.x = Math.round(frame.camera.followX / GRID_PERIOD) * GRID_PERIOD;
+      ground.position.z = Math.round(frame.camera.followZ / GRID_PERIOD) * GRID_PERIOD;
 
       renderer.render(scene, camera);
       return frame;

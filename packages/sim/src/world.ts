@@ -1,12 +1,15 @@
 import { INTEGRITY } from "./constants";
-import { fnv1aI32, fnv1aStart, fnv1aU32 } from "./hash";
+import { fnv1aF64, fnv1aI32, fnv1aStart, fnv1aU32 } from "./hash";
+import { stepMovement } from "./movement";
 import { assertOrientationTables } from "./orientation";
 import { type RngBank, copyRngBank, createRngBank, sfc32Next } from "./rng";
 import { type SimSnapshot, createSnapshot } from "./snapshot";
+import { Terrain } from "./terrain";
 
 export interface WorldConfig {
   seed: number;
   contentHash: number;
+  terrain?: Terrain;
 }
 
 export class World {
@@ -17,30 +20,85 @@ export class World {
   buttonMask = 0;
   integrity = INTEGRITY;
   readonly rng: RngBank;
+  readonly terrain: Terrain;
+
+  x = 0;
+  h = 0;
+  z = 0;
+  orientation = 0;
+  mode = 0;
+  dir = 0;
+  phase = 0;
+  duration = 0;
+  startX = 0;
+  startH = 0;
+  startZ = 0;
+  startOri = 0;
+  destX = 0;
+  destH = 0;
+  destZ = 0;
+  destOri = 0;
+  leap = 0;
+  jumpBuf = 0;
+  pivotArmed = 0;
+  moveLock = 0;
+  flags = 0;
+  vy = 0;
+  airY = 0;
+  prevMask = 0;
+  spawnX = 0;
+  spawnH = 0;
+  spawnZ = 0;
+  spawnOri = 0;
 
   constructor(config: WorldConfig) {
     assertOrientationTables();
     this.seed = config.seed >>> 0;
     this.contentHash = config.contentHash >>> 0;
     this.rng = createRngBank(this.seed);
+    this.terrain = config.terrain ?? new Terrain();
   }
 
   step(mask: number): void {
     this.tick += 1;
     this.buttonMask = mask | 0;
+    stepMovement(this, mask | 0);
     sfc32Next(this.rng.world);
   }
 
   capture(out: SimSnapshot): void {
+    this.player[0] = this.x;
+    this.player[1] = this.h;
+    this.player[2] = this.z;
+    this.player[3] = this.orientation;
     out.tick = this.tick;
     out.seed = this.seed;
     out.contentHash = this.contentHash;
     out.integrity = this.integrity;
-    out.player.x = this.player[0] ?? 0;
-    out.player.y = this.player[1] ?? 0;
-    out.player.z = this.player[2] ?? 0;
-    out.player.orientation = this.player[3] ?? 0;
-    out.hashes.player = hashPlayer(out.player);
+    out.player.x = this.x;
+    out.player.y = this.h;
+    out.player.z = this.z;
+    out.player.orientation = this.orientation;
+    out.move.mode = this.mode;
+    out.move.dir = this.dir;
+    out.move.phase = this.phase;
+    out.move.duration = this.duration;
+    out.move.startX = this.startX;
+    out.move.startY = this.startH;
+    out.move.startZ = this.startZ;
+    out.move.startOri = this.startOri;
+    out.move.destX = this.destX;
+    out.move.destY = this.destH;
+    out.move.destZ = this.destZ;
+    out.move.destOri = this.destOri;
+    out.move.leap = this.leap;
+    out.move.jumpBuf = this.jumpBuf;
+    out.move.pivotArmed = this.pivotArmed;
+    out.move.moveLock = this.moveLock;
+    out.move.flags = this.flags;
+    out.move.vy = this.vy;
+    out.move.airY = this.airY;
+    out.hashes.player = hashPlayer(out);
     out.hashes.rng = hashRng(this.rng);
     out.hashes.world = hashWorld(this.contentHash, this.tick);
     out.hashes.input = fnv1aU32(fnv1aStart(), this.buttonMask);
@@ -58,12 +116,33 @@ export class World {
   }
 }
 
-function hashPlayer(p: { x: number; y: number; z: number; orientation: number }): number {
+function hashPlayer(out: SimSnapshot): number {
+  const p = out.player;
+  const m = out.move;
   let h = fnv1aStart();
   h = fnv1aI32(h, p.x);
   h = fnv1aI32(h, p.y);
   h = fnv1aI32(h, p.z);
-  return fnv1aU32(h, p.orientation);
+  h = fnv1aU32(h, p.orientation);
+  h = fnv1aU32(h, m.mode);
+  h = fnv1aU32(h, m.dir);
+  h = fnv1aU32(h, m.phase);
+  h = fnv1aU32(h, m.duration);
+  h = fnv1aI32(h, m.startX);
+  h = fnv1aI32(h, m.startY);
+  h = fnv1aI32(h, m.startZ);
+  h = fnv1aU32(h, m.startOri);
+  h = fnv1aI32(h, m.destX);
+  h = fnv1aI32(h, m.destY);
+  h = fnv1aI32(h, m.destZ);
+  h = fnv1aU32(h, m.destOri);
+  h = fnv1aU32(h, m.leap);
+  h = fnv1aU32(h, m.jumpBuf);
+  h = fnv1aU32(h, m.pivotArmed);
+  h = fnv1aU32(h, m.moveLock);
+  h = fnv1aU32(h, m.flags);
+  h = fnv1aF64(h, m.vy);
+  return fnv1aF64(h, m.airY);
 }
 
 function hashRng(rng: RngBank): number {
