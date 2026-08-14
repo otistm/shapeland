@@ -33,6 +33,8 @@ export const CAM_FOLLOW = 5.2;
 export const CAM_CLIMB = 4.5;
 export const CAM_LOOKAHEAD = 0.85;
 export const CAM_LOOKAHEAD_RATE = 4;
+/** Quarter-turn orbit. Stick mapping uses resting yaw, never this in-flight value. */
+export const CAM_YAW_RATE = 8;
 export const CAM_SHAKE_DECAY = 7.5;
 export const CAM_KICK_STIFF = 90;
 export const CAM_KICK_DAMP = 12;

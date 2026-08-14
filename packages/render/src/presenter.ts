@@ -39,7 +39,13 @@ import {
   Scene,
   WebGPURenderer,
 } from "three/webgpu";
-import { clearCameraFeel, createCameraRig, lookAtY, stepCamera } from "./camera";
+import {
+  clearCameraFeel,
+  createCameraRig,
+  lookAtY,
+  stepCamera,
+  turnCameraYaw,
+} from "./camera";
 import { bakeFaceTextures } from "./faces";
 import { toNonIndexedFacets } from "./geometry";
 import { type InterpolatedFrame, interpolate } from "./interpolate";
@@ -53,6 +59,9 @@ export type RenderBackend = "webgpu" | "webgl2";
 
 export interface GamePresenter {
   backend: RenderBackend;
+  /** Resting quarter-turn 0..3. Stick mapping must use this, never an in-between. */
+  readonly yaw: number;
+  turnCamera(delta: 1 | -1): void;
   present(prev: SimSnapshot, cur: SimSnapshot, alpha: number, dt: number): InterpolatedFrame;
   resize(width: number, height: number): void;
   dispose(): void;
@@ -184,8 +193,15 @@ export async function createGamePresenter(
 
   return {
     backend,
+    get yaw() {
+      return rig.yaw;
+    },
+    turnCamera(delta) {
+      turnCameraYaw(rig, delta);
+    },
     present(prev, cur, alpha, dt) {
       const frame = interpolate(prev, cur, alpha);
+      const reduced = reducedMotion();
       stepCamera(
         rig,
         {
@@ -196,6 +212,7 @@ export async function createGamePresenter(
           aimZ: frame.camera.aimZ,
           dt,
           heightAt,
+          reduced,
         },
         camReady,
       );
@@ -232,16 +249,15 @@ export async function createGamePresenter(
       }
 
       sun.position.set(
-        frame.camera.followX + KEY_LIGHT[0],
+        frame.camera.followX + KEY_LIGHT[0] * rig.yawCos - KEY_LIGHT[2] * rig.yawSin,
         KEY_LIGHT[1],
-        frame.camera.followZ + KEY_LIGHT[2],
+        frame.camera.followZ + KEY_LIGHT[0] * rig.yawSin + KEY_LIGHT[2] * rig.yawCos,
       );
       sun.target.position.set(frame.camera.followX, frame.camera.restY, frame.camera.followZ);
       sun.target.updateMatrixWorld();
       ground.position.x = Math.round(frame.camera.followX / GRID_PERIOD) * GRID_PERIOD;
       ground.position.z = Math.round(frame.camera.followZ / GRID_PERIOD) * GRID_PERIOD;
 
-      const reduced = reducedMotion();
       vfx.present(
         cur,
         dt,

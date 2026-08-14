@@ -38,4 +38,27 @@ describe("qa-keyboard held mask", () => {
     expect(mask).toBe(0);
     unbind();
   });
+
+  it("emits a camera quarter-turn on C/Z without repeating or writing a move mask", () => {
+    const turns: number[] = [];
+    let mask = 0;
+    const target = new EventTarget();
+    const unbind = bindKeyboard(
+      target,
+      (next) => {
+        mask = next;
+      },
+      (delta) => turns.push(delta),
+    );
+    target.dispatchEvent(key("keydown", "KeyC"));
+    expect(turns).toEqual([1]);
+    expect(mask).toBe(0);
+    const hold = key("keydown", "KeyC");
+    Object.defineProperty(hold, "repeat", { value: true });
+    target.dispatchEvent(hold);
+    expect(turns).toEqual([1]);
+    target.dispatchEvent(key("keydown", "KeyZ"));
+    expect(turns).toEqual([1, -1]);
+    unbind();
+  });
 });

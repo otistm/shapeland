@@ -11,7 +11,7 @@ import {
   PAD_DEAD,
   TOUCH_DEAD,
 } from "./constants";
-import { analogToMask, dirFromMask, mergeInputMasks } from "./input";
+import { analogToMask, dirFromMask, mergeInputMasks, rotateDirMask } from "./input";
 
 describe("qa-dpad axis lock", () => {
   it("lets the larger component win and zeros the other", () => {
@@ -36,6 +36,21 @@ describe("qa-dpad axis lock", () => {
     expect(analogToMask(0, 0.37, PAD_DEAD)).toBe(0);
     expect(analogToMask(0, 0.38, PAD_DEAD)).toBe(BUTTON_N);
     expect(analogToMask(0.2, 0.2, TOUCH_DEAD)).toBe(0);
+  });
+});
+
+describe("qa-cam yaw remap", () => {
+  it("rotates screen-up into world east after one quarter-turn and leaves actions", () => {
+    expect(rotateDirMask(BUTTON_N, 0)).toBe(BUTTON_N);
+    expect(rotateDirMask(BUTTON_N, 1)).toBe(BUTTON_E);
+    expect(rotateDirMask(BUTTON_N, 2)).toBe(BUTTON_S);
+    expect(rotateDirMask(BUTTON_N, 3)).toBe(BUTTON_W);
+    expect(rotateDirMask(BUTTON_E, 1)).toBe(BUTTON_S);
+    expect(rotateDirMask(BUTTON_W, 1)).toBe(BUTTON_N);
+    expect(rotateDirMask(BUTTON_S, 1)).toBe(BUTTON_W);
+    expect(rotateDirMask(BUTTON_JUMP | BUTTON_N, 1)).toBe(BUTTON_JUMP | BUTTON_E);
+    expect(rotateDirMask(BUTTON_PIVOT, 2)).toBe(BUTTON_PIVOT);
+    expect(rotateDirMask(BUTTON_N, 5)).toBe(BUTTON_E);
   });
 });
 

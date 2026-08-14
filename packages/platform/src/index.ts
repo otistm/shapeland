@@ -43,7 +43,14 @@ const KEY_MASK: Record<string, number> = {
   ShiftLeft: BUTTON_PIVOT,
 };
 
-export function bindKeyboard(target: EventTarget, onMask: (mask: number) => void): () => void {
+const CAM_CW = new Set(["KeyC", "Period", "BracketRight"]);
+const CAM_CCW = new Set(["KeyZ", "Comma", "BracketLeft"]);
+
+export function bindKeyboard(
+  target: EventTarget,
+  onMask: (mask: number) => void,
+  onCam?: (delta: 1 | -1) => void,
+): () => void {
   const down = new Set<string>();
   const emit = () => {
     let mask = 0;
@@ -52,6 +59,18 @@ export function bindKeyboard(target: EventTarget, onMask: (mask: number) => void
   };
   const onDown = (ev: Event) => {
     const kev = ev as KeyboardEvent;
+    if (onCam && !kev.repeat) {
+      if (CAM_CW.has(kev.code)) {
+        kev.preventDefault();
+        onCam(1);
+        return;
+      }
+      if (CAM_CCW.has(kev.code)) {
+        kev.preventDefault();
+        onCam(-1);
+        return;
+      }
+    }
     if (KEY_MASK[kev.code] === undefined) return;
     kev.preventDefault();
     down.add(kev.code);

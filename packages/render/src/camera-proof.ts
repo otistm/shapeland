@@ -2,6 +2,8 @@ import {
   CAM_KICK_PHYS,
   CAM_LOOKAHEAD,
   CAM_LOOKAHEAD_RATE,
+  CAM_OFFSET,
+  CAM_YAW_RATE,
   DT,
   MODE_ROLL,
   type ProofLine,
@@ -18,7 +20,7 @@ import {
   SHAKE_SENTRY,
   createSnapshot,
 } from "@shapeland/sim";
-import { createCameraRig, impactKick, impactShake, stepCamera } from "./camera";
+import { createCameraRig, impactKick, impactShake, stepCamera, turnCameraYaw } from "./camera";
 import { cameraTarget, visualPose } from "./pose";
 
 function log(lines: ProofLine[], ok: boolean, message: string): void {
@@ -135,6 +137,7 @@ export function proveCamera(): ProofLine[] {
     `look-ahead 60Hz vs 144Hz Δ ${Math.abs(a.lookAheadX - b.lookAheadX)} (exp, not lerp)`,
   );
   log(lines, CAM_LOOKAHEAD_RATE === 4, `look-ahead rate ${CAM_LOOKAHEAD_RATE}`);
+  log(lines, CAM_YAW_RATE === 8, `yaw orbit rate ${CAM_YAW_RATE}`);
 
   const kick = createCameraRig();
   const kr = { current: false };
@@ -161,6 +164,28 @@ export function proveCamera(): ProofLine[] {
     stepCamera(sh, { followX: i, followZ: 0, restY: 0, dt: 0.05 }, { current: true });
   }
   log(lines, sh.shake === 0, "shake hits the 0.004 floor and stops");
+
+  const yawRig = createCameraRig();
+  const yawReady = { current: false };
+  stepCamera(yawRig, { followX: 0, followZ: 0, restY: 0, dt: 1 }, yawReady);
+  turnCameraYaw(yawRig, 1);
+  stepCamera(yawRig, { followX: 0, followZ: 0, restY: 0, dt: DT }, yawReady);
+  const midX = yawRig.position.x - yawRig.target.x;
+  log(
+    lines,
+    yawRig.yaw === 1 && midX < 0 && midX > -CAM_OFFSET[2] + 0.5 && yawRig.shake === 0,
+    `orbit in flight x ${midX.toFixed(2)} (not snapped), no shake`,
+  );
+  for (let i = 0; i < 240; i++) {
+    stepCamera(yawRig, { followX: 0, followZ: 0, restY: 0, dt: DT }, yawReady);
+  }
+  const ox = yawRig.position.x - yawRig.target.x;
+  const oz = yawRig.position.z - yawRig.target.z;
+  log(
+    lines,
+    yawRig.yaw === 1 && Math.abs(ox + CAM_OFFSET[2]) < 0.05 && Math.abs(oz) < 0.05 && yawRig.shake === 0,
+    `quarter-turn yaw ${yawRig.yaw} settled (${ox.toFixed(2)}, ${oz.toFixed(2)}) axis-aligned, no shake`,
+  );
 
   return lines;
 }

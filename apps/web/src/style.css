@@ -110,6 +110,11 @@ body {
   pointer-events: none;
 }
 
+#camCcw,
+#camCw {
+  padding: 11px 14px;
+}
+
 .tbtn {
   pointer-events: auto;
   cursor: pointer;

@@ -75,6 +75,39 @@ export function analogToMask(x: number, y: number, dead: number): number {
   return y > 0 ? BUTTON_N : BUTTON_S;
 }
 
+/**
+ * Rotate view-space cardinals into world space by `yaw` quarter-turns (0..3).
+ * Screen-up stays "into the camera look" so WASD never lies after a 90° cam turn.
+ * Jump/pivot and any other non-dir bits pass through. Integer table — no trig.
+ */
+export function rotateDirMask(mask: number, yaw: number): number {
+  const q = yaw & 3;
+  if (q === 0) return mask;
+  const act = mask & ~BUTTON_DIR;
+  const n = (mask & BUTTON_N) !== 0;
+  const e = (mask & BUTTON_E) !== 0;
+  const s = (mask & BUTTON_S) !== 0;
+  const w = (mask & BUTTON_W) !== 0;
+  let dir = 0;
+  if (q === 1) {
+    if (n) dir |= BUTTON_E;
+    if (e) dir |= BUTTON_S;
+    if (s) dir |= BUTTON_W;
+    if (w) dir |= BUTTON_N;
+  } else if (q === 2) {
+    if (n) dir |= BUTTON_S;
+    if (e) dir |= BUTTON_W;
+    if (s) dir |= BUTTON_N;
+    if (w) dir |= BUTTON_E;
+  } else {
+    if (n) dir |= BUTTON_W;
+    if (e) dir |= BUTTON_N;
+    if (s) dir |= BUTTON_E;
+    if (w) dir |= BUTTON_S;
+  }
+  return dir | act;
+}
+
 /** Touch dir beats pad dir beats keyboard dir. Jump/pivot bits OR together. */
 export function mergeInputMasks(keyboard: number, touch: number, pad: number): number {
   const actions = (keyboard | touch | pad) & BUTTON_ACT;

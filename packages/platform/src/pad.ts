@@ -14,6 +14,8 @@ export const PAD_JUMP = [0] as const;
 export const PAD_PIVOT = [1] as const;
 export const PAD_SPEAK = [3] as const;
 export const PAD_EQUIP = [9, 8] as const;
+export const PAD_CAM_CCW = [4] as const;
+export const PAD_CAM_CW = [5] as const;
 export const PAD_HAT_UP = 12;
 export const PAD_HAT_DOWN = 13;
 export const PAD_HAT_LEFT = 14;
@@ -30,6 +32,8 @@ export interface PadSample {
   risingPivot: boolean;
   risingSpeak: boolean;
   risingEquip: boolean;
+  risingCamCw: boolean;
+  risingCamCcw: boolean;
 }
 
 export interface PadPoller {
@@ -154,6 +158,8 @@ export function createPadPoller(deps: PadDeps = {}): PadPoller {
     risingPivot: false,
     risingSpeak: false,
     risingEquip: false,
+    risingCamCw: false,
+    risingCamCcw: false,
   };
   const log = deps.log ?? console.info;
 
@@ -188,6 +194,8 @@ export function createPadPoller(deps: PadDeps = {}): PadPoller {
     sample.risingPivot = false;
     sample.risingSpeak = false;
     sample.risingEquip = false;
+    sample.risingCamCw = false;
+    sample.risingCamCcw = false;
     if (wasConnected) {
       connected = false;
       id = "";
@@ -214,7 +222,9 @@ export function createPadPoller(deps: PadDeps = {}): PadPoller {
       const pivot = risingGroup((i) => btnPressed(g, i), PAD_PIVOT, jump.nextBits);
       const speak = risingGroup((i) => btnPressed(g, i), PAD_SPEAK, pivot.nextBits);
       const equip = risingGroup((i) => btnPressed(g, i), PAD_EQUIP, speak.nextBits);
-      prevBits = equip.nextBits;
+      const camCcw = risingGroup((i) => btnPressed(g, i), PAD_CAM_CCW, equip.nextBits);
+      const camCw = risingGroup((i) => btnPressed(g, i), PAD_CAM_CW, camCcw.nextBits);
+      prevBits = camCw.nextBits;
 
       sample.connected = true;
       sample.id = id;
@@ -222,6 +232,8 @@ export function createPadPoller(deps: PadDeps = {}): PadPoller {
       sample.risingPivot = pivot.any;
       sample.risingSpeak = speak.any;
       sample.risingEquip = equip.any;
+      sample.risingCamCcw = camCcw.any;
+      sample.risingCamCw = camCw.any;
       // Pulse jump/pivot so a hold through a modal cannot rising-edge the sim on close.
       sample.mask = dir | (jump.any ? BUTTON_JUMP : 0) | (pivot.any ? BUTTON_PIVOT : 0);
       return sample;

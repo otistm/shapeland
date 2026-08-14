@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { CAM_AIM, CAM_CLIMB, CAM_FOV, CAM_OFFSET, CUBE_BODY, TOON_BANDS, UP } from "@shapeland/sim";
 import { describe, expect, it } from "vitest";
 import {
+  cameraOffsetForYaw,
   cameraOffsetLength,
   cameraPitchDeg,
   cameraYawDeg,
@@ -12,6 +13,8 @@ import {
   lookAtY,
   occlusionLift,
   stepCamera,
+  turnCameraYaw,
+  unwrapQuarter,
 } from "./camera";
 import { proveCamera } from "./camera-proof";
 import { SIM_FACE_FOR_GROUP, orientationQuaternion, upGroup } from "./orientation-map";
@@ -26,6 +29,55 @@ describe("qa-cam", () => {
     expect(cameraYawDeg()).toBeCloseTo(0, 5);
     expect(cameraPitchDeg()).toBeCloseTo(27.4, 1);
     expect(cameraOffsetLength()).toBeCloseTo(20.0, 1);
+  });
+
+  it("keeps pitch, distance, and axis-aligned offset at every quarter-turn", () => {
+    for (let q = 0; q < 4; q++) {
+      const [ox, oy, oz] = cameraOffsetForYaw(q);
+      expect(oy).toBe(CAM_OFFSET[1]);
+      expect(ox === 0 || oz === 0).toBe(true);
+      expect(Math.hypot(ox, oy, oz)).toBeCloseTo(20.0, 1);
+    }
+    expect(cameraYawDeg(1)).toBeCloseTo(-90, 5);
+    expect(Math.abs(cameraYawDeg(2))).toBeCloseTo(180, 5);
+    expect(cameraYawDeg(3)).toBeCloseTo(90, 5);
+    expect(cameraPitchDeg()).toBeCloseTo(27.4, 1);
+  });
+
+  it("unwraps successive taps so a 180° orbit keeps the tapped direction", () => {
+    expect(unwrapQuarter(0, 1)).toBe(1);
+    expect(unwrapQuarter(0.9, 0)).toBe(0);
+    expect(unwrapQuarter(3.2, 0)).toBe(4);
+    expect(unwrapQuarter(0.2, 3)).toBe(-1);
+  });
+
+  it("orbits a quarter-turn without snapping or writing shake", () => {
+    const rig = createCameraRig();
+    const ready = { current: false };
+    stepCamera(rig, { followX: 0, followZ: 0, restY: 0, dt: 1 }, ready);
+    turnCameraYaw(rig, 1);
+    stepCamera(rig, { followX: 0, followZ: 0, restY: 0, dt: 1 / 120 }, ready);
+    expect(rig.yaw).toBe(1);
+    expect(rig.position.x).toBeGreaterThan(-CAM_OFFSET[2] + 1);
+    expect(rig.position.x).toBeLessThan(0);
+    expect(rig.shake).toBe(0);
+    for (let i = 0; i < 240; i++) {
+      stepCamera(rig, { followX: 0, followZ: 0, restY: 0, dt: 1 / 120 }, ready);
+    }
+    expect(rig.position.x).toBeCloseTo(-CAM_OFFSET[2], 1);
+    expect(rig.position.z).toBeCloseTo(0, 1);
+    expect(rig.yawVisual).toBe(1);
+  });
+
+  it("snaps the orbit under reduced motion", () => {
+    const rig = createCameraRig();
+    const ready = { current: false };
+    stepCamera(rig, { followX: 0, followZ: 0, restY: 0, dt: 1 }, ready);
+    turnCameraYaw(rig, 1);
+    stepCamera(rig, { followX: 0, followZ: 0, restY: 0, dt: 1 / 120, reduced: true }, ready);
+    expect(rig.yawVisual).toBe(1);
+    expect(rig.position.x).toBeCloseTo(-CAM_OFFSET[2], 1);
+    expect(rig.position.z).toBeCloseTo(0, 1);
   });
 
   it("tracks resting ground height, not the cube's visual y", () => {
@@ -88,6 +140,14 @@ describe("qa-cam", () => {
     const flatReady = { current: false };
     stepCamera(flat, { followX: 0, followZ: 0, restY: 0, dt: 1, heightAt: () => 0 }, flatReady);
     expect(flat.occludeY).toBe(0);
+  });
+
+  it("lifts over a height-8 column on the rotated look vector", () => {
+    const west = (x: number, z: number) => (x === -8 && z === 0 ? 8 : 0);
+    expect(occlusionLift(west, 0, 0, 0, 1)).toBeGreaterThan(2);
+    expect(occlusionLift(west, 0, 0, 0, 0)).toBe(0);
+    const south = (x: number, z: number) => (x === 0 && z === -8 ? 8 : 0);
+    expect(occlusionLift(south, 0, 0, 0, 2)).toBeGreaterThan(2);
   });
 });
 

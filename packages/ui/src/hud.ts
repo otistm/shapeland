@@ -60,6 +60,7 @@ export interface HudOptions {
   canvases: AbilityCanvases;
   onModal?: (open: boolean) => void;
   onCommit?: (faces: number[]) => boolean;
+  onCam?: (delta: 1 | -1) => void;
 }
 
 export function mountHud(host: HTMLElement, opts: HudOptions): HudHandle {
@@ -84,11 +85,25 @@ export function mountHud(host: HTMLElement, opts: HudOptions): HudHandle {
 
   const topbar = document.createElement("div");
   topbar.id = "topbar";
+  const camCcwBtn = document.createElement("button");
+  camCcwBtn.className = "tbtn";
+  camCcwBtn.id = "camCcw";
+  camCcwBtn.type = "button";
+  camCcwBtn.setAttribute("aria-label", "Turn camera left 90 degrees");
+  camCcwBtn.innerHTML = `CAM ‹<span class="pad">LB</span>`;
+  const camCwBtn = document.createElement("button");
+  camCwBtn.className = "tbtn";
+  camCwBtn.id = "camCw";
+  camCwBtn.type = "button";
+  camCwBtn.setAttribute("aria-label", "Turn camera right 90 degrees");
+  camCwBtn.innerHTML = `CAM ›<span class="pad">RB</span>`;
   const equipBtn = document.createElement("button");
   equipBtn.className = "tbtn nudge";
   equipBtn.id = "equipBtn";
   equipBtn.type = "button";
   equipBtn.innerHTML = `EQUIP<span class="dot"></span><span class="pad">START</span>`;
+  topbar.appendChild(camCcwBtn);
+  topbar.appendChild(camCwBtn);
   topbar.appendChild(equipBtn);
 
   const overlay = document.createElement("div");
@@ -403,6 +418,8 @@ export function mountHud(host: HTMLElement, opts: HudOptions): HudHandle {
   }
 
   equipBtn.addEventListener("click", () => setOpen(true));
+  camCcwBtn.addEventListener("click", () => opts.onCam?.(-1));
+  camCwBtn.addEventListener("click", () => opts.onCam?.(1));
   done.addEventListener("click", commit);
   speakBtn.addEventListener("click", openDialog);
   dialog.addEventListener("pointerdown", (e) => {

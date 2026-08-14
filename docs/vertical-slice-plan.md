@@ -240,12 +240,12 @@ every agent on the project.
   far 70, radius 1.8, bias −0.0012. **Receivers are floor surfaces ONLY** (ground
   plane, terrain tops). Slanted low-poly ink receiving shadows produces texel-grid
   acne.
-- **Camera:** `CAM_OFFSET (0.0, 9.2, 17.77)` — yaw 0°, pitch 27.4°, dist 20.0,
-  FOV 42, aim height 0.55. Yaw 0 makes cardinals unambiguous and pure diagonals an
-  exact deterministic tie (`|x| >= |z|` picks X). Avoid yaws near ±45°/±135° (stick
-  snapping becomes a coin flip). Zoom by scaling the offset uniformly, never by FOV.
-  Camera orientation is baked into six places (VIEW_DIR, billboard bases, burst yaw,
-  input basis) — any live change must call `recomputeCameraBasis()`.
+- **Camera:** `CAM_OFFSET (0.0, 9.2, 17.77)` — resting yaw is an integer quarter
+  `0..3` (ADR 0018), pitch 27.4°, dist 20.0, FOV 42, aim height 0.55. Default yaw 0
+  looks −Z. Turns orbit at `CAM_YAW_RATE 8`; stick mapping uses resting yaw so a
+  mid-turn 45° is never a coin flip. Reduced motion snaps. Zoom by scaling the
+  offset uniformly, never by FOV. Visual yaw rotates the offset, occlusion, and
+  key light; `rotateDirMask` uses the integer index.
 - **Palette on white:** additive glow is invisible; brightness must come from
   saturation and dynamic point lights coloring the floor. Cube body `#4a7fd4`
   (contrast 1.99–3.03:1 vs floor across bands). Ability colors are single-sourced:
@@ -548,9 +548,8 @@ one NPC archetype · three named regions · terraced elevation · anchor respawn
 integrity pips (soft death for the slice) · pad + touch + keyboard parity.
 
 **Deliberately excluded from the slice (and why):**
-- **Free camera / rotation** — fixed camera keeps stick mapping absolute and bakes
-  six cheap orientation-dependent systems; rotation would force
-  `recomputeCameraBasis` every frame and re-tuned readability.
+- **Free camera / analog orbit** — 90° snaps are allowed (ADR 0018); analog orbit
+  would force a per-frame basis and make stick snapping a coin flip.
 - **Physics engine** — the grid IS the physics; determinism is what makes the
   proofs possible.
 - **Smooth terrain/ramps** — violates rule 1; sub-cell height would break the

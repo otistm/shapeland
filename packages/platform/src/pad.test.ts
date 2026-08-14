@@ -146,4 +146,16 @@ describe("qa-pad poller", () => {
     expect(gone.connected).toBe(false);
     expect(gone.mask).toBe(0);
   });
+
+  it("rising-edges LB/RB for camera turns without writing a move mask", () => {
+    const pad = fakePad({ buttons: { 4: true, 5: true } });
+    const poller = createPadPoller({ getGamepads: () => [pad] });
+    const first = poller.poll();
+    expect(first.risingCamCcw).toBe(true);
+    expect(first.risingCamCw).toBe(true);
+    expect(first.mask).toBe(0);
+    const held = poller.poll();
+    expect(held.risingCamCcw).toBe(false);
+    expect(held.risingCamCw).toBe(false);
+  });
 });

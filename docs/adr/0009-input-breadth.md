@@ -29,4 +29,6 @@ that truth. The Gamepad API is a level snapshot with no events, and in a permiss
 
 - Analog lock lives in sim (`analogToMask`) so qa-dpad runs without DOM. Polling, policy, and touch
   binding live in platform. HUD never imports platform.
+- Screen cardinals become world cardinals via `rotateDirMask` after a camera quarter-turn (ADR 0018).
+  Analog lock still happens in view space first.
 - Full remapping and pivot hold/toggle options remain deferred.

@@ -161,9 +161,9 @@ is proven in `tools/verify-cube-group.mjs` and must stay proven.
 
 ### Deliberately excluded, and why
 
-- **Free camera / rotation** — a fixed camera keeps stick mapping absolute and bakes six cheap
-  orientation-dependent systems. Rotation would force a basis recompute every frame and re-tuned
-  readability.
+- **Free camera / analog orbit** — a 90° snap (integer yaw `0..3`, ADR 0018) is allowed so the
+  lattice stays axis-aligned. Stick mapping is camera-relative via `rotateDirMask`. Free orbit and
+  in-between yaws remain excluded: they would make axis-lock a coin flip.
 - **A physics engine** — the grid IS the physics; determinism is what makes the proofs possible.
 - **Smooth terrain and ramps** — violates terrain rule 1; sub-cell height would break the
   quarter-turn invariant.

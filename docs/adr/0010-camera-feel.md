@@ -21,12 +21,14 @@ on every roll because the arc lift lives there. Phase 8 is the feel pass that ma
    labelled `// impact:`). Decay `e^(−7.5 dt)` hits a hard floor at 0.004 so tails do not dither.
 5. **One kick spring.** Physical landings subtract `CAM_KICK_PHYS 2.8` from kick velocity; stiffness
    90 / damping 12 recover on the camera's Y only. Reduced motion zeroes shake and kick.
+6. **Yaw is a quarter-turn index `0..3` (ADR 0018).** Visual yaw orbits at `CAM_YAW_RATE`; stick
+   mapping uses the resting index, never the in-flight angle. Reduced motion snaps.
 
 ## Consequences
 
 - `cameraTarget` is the only sanctioned camera input. Presenter look-at uses `rig.target`, which
   already includes look-ahead.
-- Height-8 columns on the +Z look vector add `occludeY`, exp-smoothed with `CAM_FOLLOW`, from
-  resting cell heights only. Traversal still never writes shake.
+- Height-8 columns on the look vector (rotated with yaw) add `occludeY`, exp-smoothed with
+  `CAM_FOLLOW`, from resting cell heights only. Traversal still never writes shake.
 - Hit-stop (sim dt scaled while shake stays on wall-clock) remains deferred; it is presentation
   punctuation, not a camera-feed invariant.

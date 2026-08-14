@@ -19,6 +19,7 @@ import {
   copySnapshot,
   mergeInputMasks,
   parseLoadout,
+  rotateDirMask,
   serializeLoadout,
 } from "@shapeland/sim";
 import { bakeAbilityCanvases, mountHud } from "@shapeland/ui";
@@ -55,10 +56,12 @@ let touchPivot = 0;
 let touchJump = 0;
 let padMask = 0;
 let padWas = false;
+let camYaw = 0;
 let applyMask = (): void => {
   sim.hold(0);
 };
 let clearStick = (): void => {};
+let turnCamera = (_delta: 1 | -1): void => {};
 
 const hud = mountHud(hudHost, {
   canvases,
@@ -79,6 +82,9 @@ const hud = mountHud(hudHost, {
     }
     return ok;
   },
+  onCam: (delta) => {
+    turnCamera(delta);
+  },
 });
 
 applyMask = () => {
@@ -86,7 +92,8 @@ applyMask = () => {
     sim.hold(0);
     return;
   }
-  sim.hold(mergeInputMasks(keyMask, touchDir | touchPivot | touchJump, padMask));
+  const merged = mergeInputMasks(keyMask, touchDir | touchPivot | touchJump, padMask);
+  sim.hold(rotateDirMask(merged, camYaw));
 };
 
 const stickEl = hudHost.querySelector("#stick");
@@ -139,16 +146,27 @@ const boot = async () => {
   hudHost.dataset.webgpu = presenter.backend === "webgpu" ? "1" : "0";
   hud.render(sim.cur, 0, presenter.backend);
 
+  turnCamera = (delta) => {
+    if (hud.modalOpen()) return;
+    presenter.turnCamera(delta);
+    camYaw = presenter.yaw;
+    applyMask();
+  };
+
   const resize = () => {
     presenter.resize(window.innerWidth, window.innerHeight);
   };
   resize();
   window.addEventListener("resize", resize);
 
-  bindKeyboard(window, (mask) => {
-    keyMask = mask;
-    applyMask();
-  });
+  bindKeyboard(
+    window,
+    (mask) => {
+      keyMask = mask;
+      applyMask();
+    },
+    (delta) => turnCamera(delta),
+  );
 
   let last = nowSeconds();
   const frame = (nowMs: number) => {
@@ -169,6 +187,8 @@ const boot = async () => {
     else if (routed.route === "speak") hud.trySpeak();
     else if (routed.route === "open-equip") hud.openEquip();
     else if (routed.route === "close-equip") hud.commitEquip();
+    if (sample.risingCamCw) turnCamera(1);
+    if (sample.risingCamCcw) turnCamera(-1);
     padMask = routed.mask;
     applyMask();
 
