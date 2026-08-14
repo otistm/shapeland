@@ -224,7 +224,7 @@ every agent on the project.
 
 - **Renderer:** WebGPU-first (WebGL2 fallback) per §1.3; sRGB output, white clear
   color. All rules in this section are stack-independent readability law. Fog `0xffffff` near 42 / far
-  110 — fog near MUST stay well beyond camera distance (17.4) or the subject itself
+  110 — fog near MUST stay well beyond camera distance (20.0) or the subject itself
   hazes; the floor (320 units) must outrun fog far.
 - **Toon shading, game-wide.** One 3-texel `DataTexture` ramp `[0.62, 0.84, 1.0]`,
   `NearestFilter`, through a single `makeToon()` factory replacing ALL
@@ -240,7 +240,7 @@ every agent on the project.
   far 70, radius 1.8, bias −0.0012. **Receivers are floor surfaces ONLY** (ground
   plane, terrain tops). Slanted low-poly ink receiving shadows produces texel-grid
   acne.
-- **Camera:** `CAM_OFFSET (0.0, 8.0, 15.45)` — yaw 0°, pitch 27.4°, dist 17.4,
+- **Camera:** `CAM_OFFSET (0.0, 9.2, 17.77)` — yaw 0°, pitch 27.4°, dist 20.0,
   FOV 42, aim height 0.55. Yaw 0 makes cardinals unambiguous and pure diagonals an
   exact deterministic tie (`|x| >= |z|` picks X). Avoid yaws near ±45°/±135° (stick
   snapping becomes a coin flip). Zoom by scaling the offset uniformly, never by FOV.
@@ -597,7 +597,7 @@ render, and tests alike — never restated locally.
 
 Movement: ROLL_DUR .19 · rollEase t²(2.2−1.2t) · JUMP_V0 7.6 · GRAV 25 · hang 2.3
 @ .62 · FLIGHT_DUR ≈ .72 · LEAP_CELLS 2 · JUMP_BUFFER .20 · TUCK_DUR .34 ·
-squash 300/21. Camera: offset (0, 8, 15.45) · FOV 42 · aim .55 · follow 5.2/s ·
+squash 300/21. Camera: offset (0, 9.2, 17.77) · FOV 42 · aim .55 · follow 5.2/s ·
 climb 4.5/s · lookahead .85 @ 4/s · fog 42/110 · shadow ±22/70, r 1.8, bias
 −.0012. Combat: AOE_R 1.55 · kill pad +0.8 · TURRET aim 1.5 / cool 1.6 / range
 6.5 · spin .5 → +12·k^1.6 · TELE 0xb8412a · i-frames 1.0 · integrity 3. Terrain:

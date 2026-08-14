@@ -26,5 +26,7 @@ on every roll because the arc lift lives there. Phase 8 is the feel pass that ma
 
 - `cameraTarget` is the only sanctioned camera input. Presenter look-at uses `rig.target`, which
   already includes look-ahead.
+- Height-8 columns on the +Z look vector add `occludeY`, exp-smoothed with `CAM_FOLLOW`, from
+  resting cell heights only. Traversal still never writes shake.
 - Hit-stop (sim dt scaled while shake stays on wall-clock) remains deferred; it is presentation
   punctuation, not a camera-feed invariant.

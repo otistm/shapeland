@@ -1,6 +1,6 @@
 import { DIR_DX, DIR_DZ, ICE_MAX, KILL_RANGE2, SLIDE_MAX } from "./constants";
 import { fnv1aStart, fnv1aU32 } from "./hash";
-import { packXZ, type Terrain } from "./terrain";
+import { type Terrain, packXZ } from "./terrain";
 
 export interface IceHost {
   ice: Uint32Array;
@@ -23,12 +23,7 @@ export function iceHas(ice: Uint32Array, count: number, x: number, z: number): b
   return findKey(ice, count, packXZ(x, z) >>> 0) >= 0;
 }
 
-function removeAt(
-  keys: Uint32Array,
-  heights: Int8Array,
-  count: number,
-  i: number,
-): number {
+function removeAt(keys: Uint32Array, heights: Int8Array, count: number, i: number): number {
   const last = count - 1;
   if (i < last) {
     keys[i] = keys[last] ?? 0;
@@ -44,6 +39,10 @@ function hashKeys(keys: Uint32Array, count: number): number {
 }
 
 export function icePaint(w: IceHost, x: number, z: number): void {
+  // Swamp and grass already taught a footing. Ice on them would slide and lie about the shape.
+  // Water may freeze: a frozen pond slides, which is what ice looks like. Gaps and walls never.
+  if (w.terrain.isSwamp(x, z) || w.terrain.isGrass(x, z)) return;
+  if (w.terrain.isGap(x, z) || w.terrain.isWall(x, z)) return;
   const key = packXZ(x, z) >>> 0;
   if (findKey(w.ice, w.iceCount, key) >= 0) return;
   if (w.iceCount >= ICE_MAX) return;

@@ -7,13 +7,16 @@ import {
   BUTTON_W,
   DIR_E,
   DIR_N,
+  DIR_NONE,
   FLAG_REFUSE,
+  GRASS_ROLL_TICKS,
   JUMP_BUFFER_TICKS,
   MODE_CROUCH,
   MODE_IDLE,
   MODE_ROLL,
   MODE_TUCK,
   ROLL_TICKS,
+  SWAMP_ROLL_TICKS,
 } from "./constants";
 import { dirFromMask } from "./input";
 import { SimLoop } from "./loop";
@@ -74,6 +77,15 @@ describe("roll", () => {
     expect(world.destX).toBe(2);
   });
 
+  it("idles on the next land after the mask is released", () => {
+    const world = new World({ seed: SEED, contentHash: CONTENT });
+    hold(world, BUTTON_E, ROLL_TICKS + 1);
+    expect(world.mode).toBe(MODE_ROLL);
+    hold(world, 0, ROLL_TICKS);
+    expect(world.mode).toBe(MODE_IDLE);
+    expect(world.dir).toBe(DIR_NONE);
+  });
+
   it("refuses walls, gaps, and |Δh| ≥ 2 cliffs without moving", () => {
     const terrain = new Terrain();
     terrain.setWall(1, 0);
@@ -103,6 +115,51 @@ describe("roll", () => {
     finishRoll(up, BUTTON_E);
     expect(up.x).toBe(1);
     expect(up.h).toBe(1);
+  });
+});
+
+describe("water and swamp", () => {
+  it("rolls onto water at dry tempo and refuses jump from wet cells", () => {
+    const terrain = new Terrain();
+    terrain.setWater(1, 0);
+    const world = new World({ seed: SEED, contentHash: CONTENT, terrain });
+    world.step(BUTTON_E);
+    expect(world.mode).toBe(MODE_ROLL);
+    expect(world.duration).toBe(ROLL_TICKS);
+    hold(world, 0, ROLL_TICKS);
+    expect(world.x).toBe(1);
+    expect(world.mode).toBe(MODE_IDLE);
+    world.step(BUTTON_JUMP);
+    expect(world.mode).toBe(MODE_IDLE);
+    expect(world.flags & FLAG_REFUSE).toBe(FLAG_REFUSE);
+  });
+
+  it("costs SWAMP_ROLL_TICKS to enter mud and still allows jump", () => {
+    const terrain = new Terrain();
+    terrain.setSwamp(1, 0);
+    const world = new World({ seed: SEED, contentHash: CONTENT, terrain });
+    world.step(BUTTON_E);
+    expect(world.mode).toBe(MODE_ROLL);
+    expect(world.duration).toBe(SWAMP_ROLL_TICKS);
+    hold(world, 0, SWAMP_ROLL_TICKS);
+    expect(world.x).toBe(1);
+    expect(world.mode).toBe(MODE_IDLE);
+    world.step(BUTTON_JUMP);
+    expect(world.mode).toBe(MODE_CROUCH);
+  });
+
+  it("costs GRASS_ROLL_TICKS to enter meadow and still allows jump", () => {
+    const terrain = new Terrain();
+    terrain.setGrass(1, 0);
+    const world = new World({ seed: SEED, contentHash: CONTENT, terrain });
+    world.step(BUTTON_E);
+    expect(world.mode).toBe(MODE_ROLL);
+    expect(world.duration).toBe(GRASS_ROLL_TICKS);
+    hold(world, 0, GRASS_ROLL_TICKS);
+    expect(world.x).toBe(1);
+    expect(world.mode).toBe(MODE_IDLE);
+    world.step(BUTTON_JUMP);
+    expect(world.mode).toBe(MODE_CROUCH);
   });
 });
 

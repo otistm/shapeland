@@ -11,7 +11,8 @@
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "prove": "tsx src/prove-cli.ts",
-    "replay": "tsx src/replay-cli.ts"
+    "replay": "tsx src/replay-cli.ts",
+    "terrain:gen": "tsx src/terrain-cli.ts"
   },
   "dependencies": {
     "@shapeland/content": "workspace:*",

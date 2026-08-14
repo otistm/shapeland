@@ -161,6 +161,14 @@ export async function createGamePresenter(
   let paintedFaces = -1;
   const vfx = createVfx(scene, rig);
   const worldView = opts.terrain ? createWorldView(scene, opts.terrain, faceTex) : null;
+  const terrain = opts.terrain;
+  const heightAt = terrain
+    ? (x: number, z: number) => {
+        const ground = terrain.height(x, z);
+        const pier = terrain.wallHeight(x, z);
+        return pier > ground ? pier : ground;
+      }
+    : undefined;
   let worldClock = 0;
   const reducedMotion = (): boolean =>
     typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -187,6 +195,7 @@ export async function createGamePresenter(
           aimX: frame.camera.aimX,
           aimZ: frame.camera.aimZ,
           dt,
+          heightAt,
         },
         camReady,
       );
@@ -232,16 +241,16 @@ export async function createGamePresenter(
       ground.position.x = Math.round(frame.camera.followX / GRID_PERIOD) * GRID_PERIOD;
       ground.position.z = Math.round(frame.camera.followZ / GRID_PERIOD) * GRID_PERIOD;
 
+      const reduced = reducedMotion();
       vfx.present(
         cur,
         dt,
         { x: cubeRig.position.x, y: cubeRig.position.y, z: cubeRig.position.z },
-        reducedMotion(),
+        reduced,
       );
       worldClock += dt;
-      worldView?.present(cur, dt, worldClock, rig);
+      worldView?.present(cur, dt, worldClock, rig, reduced);
 
-      const reduced = reducedMotion();
       if (reduced) clearCameraFeel(rig);
       camera.position.set(rig.position.x, rig.position.y + rig.kickY, rig.position.z);
       const shake = rig.shake;

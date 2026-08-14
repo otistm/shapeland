@@ -21,7 +21,8 @@ Terrain is BUILT from stacked unit cubes, LEGO-fashion.
 Rule 1 is load-bearing for the whole game: sub-cell height would break the quarter-turn invariant,
 which would break every socket proof. A designer who wants a ramp wants a staircase.
 
-Author terrain **only** through the sanctioned helpers (`terraceHill(cx, cz, peak)` with `peak ≤ 3`,
+Author terrain **only** through the sanctioned helpers (`bench`, `terracePool`,
+`terraceHill(cx, cz, peak)` with `peak ≤ 8` per ADR 0015,
 and `raiseRect`) writing into the single height map. One write site, always. Every summit must be
 BFS-reachable.
 

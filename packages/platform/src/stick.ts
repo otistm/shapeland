@@ -75,6 +75,7 @@ export function bindTouchStick(
   stick.addEventListener("pointermove", onMove);
   stick.addEventListener("pointerup", onUp);
   stick.addEventListener("pointercancel", clear);
+  stick.addEventListener("lostpointercapture", clear);
 
   return {
     clear,
@@ -83,6 +84,7 @@ export function bindTouchStick(
       stick.removeEventListener("pointermove", onMove);
       stick.removeEventListener("pointerup", onUp);
       stick.removeEventListener("pointercancel", clear);
+      stick.removeEventListener("lostpointercapture", clear);
       clear();
     },
   };

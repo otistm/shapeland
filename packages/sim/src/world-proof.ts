@@ -234,10 +234,13 @@ export function proveWorld(): ProofLine[] {
   const fromSocket = bfs(world, SOCKET.x, SOCKET.z, 0, true, true);
   const glyphD = minAt(fromSocket, GLYPH.x, GLYPH.z);
   log(lines, glyphD === 5, `socket → glyph with door open in ${glyphD} moves`);
+  const iceX: number = ICE_GLYPH.x;
+  const iceZ: number = ICE_GLYPH.z;
+  const glyphX: number = GLYPH.x;
+  const glyphZ: number = GLYPH.z;
   log(
     lines,
-    regionOf(ICE_GLYPH.x, ICE_GLYPH.z, 1) === REGION_CHAMBER &&
-      !(ICE_GLYPH.x === GLYPH.x && ICE_GLYPH.z === GLYPH.z),
+    regionOf(iceX, iceZ, 1) === REGION_CHAMBER && (iceX !== glyphX || iceZ !== glyphZ),
     "ice glyph is inside the chamber and off the lightning cell",
   );
   world.doorOpen = 0;

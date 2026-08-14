@@ -14,6 +14,7 @@ const DIRS: Record<string, string> = {
   platform: join(ROOT, "packages", "platform", "src"),
   tools: join(ROOT, "packages", "tools", "src"),
   web: join(ROOT, "apps", "web", "src"),
+  terrain: join(ROOT, "apps", "terrain", "src"),
 };
 
 function walk(dir: string, files: string[]): void {
@@ -54,6 +55,7 @@ describe("package boundaries", () => {
       platform: join(ROOT, "packages", "platform", "package.json"),
       tools: join(ROOT, "packages", "tools", "package.json"),
       web: join(ROOT, "apps", "web", "package.json"),
+      terrain: join(ROOT, "apps", "terrain", "package.json"),
     };
     for (const [pkg, path] of Object.entries(pkgJson)) {
       const json = JSON.parse(readFileSync(path, "utf8")) as {

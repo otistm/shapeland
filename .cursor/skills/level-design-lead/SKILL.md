@@ -20,8 +20,13 @@ clarity, and the metrics table.
 Rule 1 is load-bearing for the entire game: sub-cell height breaks the quarter-turn invariant, which
 breaks every socket proof. **A designer who wants a ramp wants a staircase.**
 
-Author terrain only through the sanctioned helpers (`terraceHill(cx, cz, peak)` with `peak ≤ 3`, and
-`raiseRect`) writing to the single height map. One write site, always.
+Author terrain only through the sanctioned helpers — `bench(cx, cz, halfW, halfD, top, tread)`,
+`terracePool`, `terraceHill(cx, cz, peak)`, `raiseRect` — with `peak ≤ 8` (ADR 0015), writing to the
+single height map. One write site, always. **A tall form is broad:** a 1:1 apron from 8 costs 8 cells
+of run per side, so a height-8 landmark is ~19 cells across. That apron is the talus slope that keeps
+the summit climbable; never author a sheer mass. Named places are authored in `blank-plan.ts` and
+noise only fills between them. `npm run terrain` previews, `npm run terrain:audit` checks bands,
+orphans and POI cadence; commit the bake in `blank-stamp.ts` and re-prove. Skill: `terrain-author`.
 
 ## Workflow — the blockout gate is hard
 

@@ -10,6 +10,7 @@ import {
   createCameraRig,
   impactShake,
   lookAtY,
+  occlusionLift,
   stepCamera,
 } from "./camera";
 import { proveCamera } from "./camera-proof";
@@ -19,12 +20,12 @@ import { sampleToonRamp, toonRampBytes } from "./toon-ramp";
 
 describe("qa-cam", () => {
   it("matches the canonical offset, fov, aim, and yaw 0", () => {
-    expect(CAM_OFFSET).toEqual([0, 8, 15.45]);
+    expect(CAM_OFFSET).toEqual([0, 9.2, 17.77]);
     expect(CAM_FOV).toBe(42);
     expect(CAM_AIM).toBe(0.55);
     expect(cameraYawDeg()).toBeCloseTo(0, 5);
     expect(cameraPitchDeg()).toBeCloseTo(27.4, 1);
-    expect(cameraOffsetLength()).toBeCloseTo(17.4, 1);
+    expect(cameraOffsetLength()).toBeCloseTo(20.0, 1);
   });
 
   it("tracks resting ground height, not the cube's visual y", () => {
@@ -71,6 +72,22 @@ describe("qa-cam", () => {
       .filter((line) => !line.ok)
       .map((line) => line.message);
     expect(failed).toEqual([]);
+  });
+
+  it("lifts over a height-8 column on the look vector without writing shake", () => {
+    const heightAt = (x: number, z: number) => (x === 0 && z === 8 ? 8 : 0);
+    expect(occlusionLift(heightAt, 0, 0, 0)).toBeGreaterThan(2);
+    const rig = createCameraRig();
+    const ready = { current: false };
+    for (let i = 0; i < 240; i++) {
+      stepCamera(rig, { followX: 0, followZ: 0, restY: 0, dt: 1 / 120, heightAt }, ready);
+    }
+    expect(rig.occludeY).toBeGreaterThan(2);
+    expect(rig.shake).toBe(0);
+    const flat = createCameraRig();
+    const flatReady = { current: false };
+    stepCamera(flat, { followX: 0, followZ: 0, restY: 0, dt: 1, heightAt: () => 0 }, flatReady);
+    expect(flat.occludeY).toBe(0);
   });
 });
 

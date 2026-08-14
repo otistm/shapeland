@@ -1,12 +1,16 @@
 import type { AbilityKind } from "@shapeland/content";
 import {
+  DIR_DX,
+  DIR_DZ,
   DOOR,
   FLAG_BLAST,
   FLAG_DOOR,
   FLAG_HURT,
   FLAG_KILL,
+  FLAG_LAND,
   GLYPH,
   ICE_GLYPH,
+  MODE_ROLL,
   NPC,
   SHAKE_BLAST,
   SHAKE_DOOR,
@@ -14,6 +18,7 @@ import {
   SHAKE_SENTRY,
   SHRINE,
   SOCKET,
+  ZIG_SOCKET,
   type SimSnapshot,
   TELE_COLOR,
   TURRET_AIM_TICKS,
@@ -30,8 +35,10 @@ import {
   Color,
   ConeGeometry,
   DoubleSide,
+  InstancedMesh,
   Mesh,
   MeshBasicNodeMaterial,
+  Object3D,
   OctahedronGeometry,
   PlaneGeometry,
   PointLight,
@@ -42,15 +49,23 @@ import { type CameraRig, impactShake } from "./camera";
 import { toNonIndexedFacets } from "./geometry";
 import { makeTerrainMaterials } from "./terrain-mat";
 import { makeToon } from "./toon";
+import {
+  makeGrassMaterial,
+  makeSwampMaterial,
+  makeWaterMaterial,
+  surfaceCellAttribute,
+} from "./water-mat";
 
 const INK = 0x2e2e38;
+/** Sheet quads are inset so the lattice still reads between wet cells. */
+const SHEET_SIZE = 0.96;
 const TURRET_R = 0.86;
 const TURRET_H = 1.8;
 const TELE_RGB = new Color(TELE_COLOR);
 const TURRET_INK = new Color(INK);
 
 export interface WorldView {
-  present(snapshot: SimSnapshot, dt: number, clock: number, rig: CameraRig): void;
+  present(snapshot: SimSnapshot, dt: number, clock: number, rig: CameraRig, reduced: boolean): void;
   dispose(): void;
 }
 
@@ -125,6 +140,45 @@ function makePickup(
   return { icon, decal };
 }
 
+/** One pooled instanced sheet per surface kind, anchored to the height map. */
+function stampSheets(
+  scene: Scene,
+  terrain: Terrain,
+  collect: (fn: (x: number, z: number) => void) => void,
+  material: MeshBasicNodeMaterial,
+  lift: number,
+): InstancedMesh {
+  const cells: Array<readonly [number, number]> = [];
+  collect((x, z) => {
+    cells.push([x, z]);
+  });
+  const geometry = new PlaneGeometry(SHEET_SIZE, SHEET_SIZE);
+  const aCell = surfaceCellAttribute(cells.length);
+  geometry.setAttribute("aCell", aCell);
+  const mesh = new InstancedMesh(geometry, material, Math.max(1, cells.length));
+  mesh.count = cells.length;
+  const dummy = new Object3D();
+  for (let i = 0; i < cells.length; i++) {
+    const cell = cells[i];
+    if (!cell) continue;
+    const x = cell[0];
+    const z = cell[1];
+    aCell.setXY(i, x, z);
+    dummy.position.set(x, terrain.height(x, z) + lift, z);
+    dummy.rotation.set(-Math.PI / 2, 0, 0);
+    dummy.updateMatrix();
+    mesh.setMatrixAt(i, dummy.matrix);
+  }
+  aCell.needsUpdate = true;
+  mesh.instanceMatrix.needsUpdate = true;
+  mesh.frustumCulled = false;
+  mesh.renderOrder = 1;
+  mesh.castShadow = false;
+  mesh.receiveShadow = false;
+  scene.add(mesh);
+  return mesh;
+}
+
 export function createWorldView(
   scene: Scene,
   terrain: Terrain,
@@ -138,30 +192,109 @@ export function createWorldView(
   });
   const terrainMats = makeTerrainMaterials(heightSet);
 
-  terrain.forEachWall((x, z) => {
-    const { h, depth } = wallHeight(x, z);
-    const m = new Mesh(new BoxGeometry(0.98, h, depth), ink);
-    m.position.set(x, h / 2, z);
+  terrain.forEachWall((x, z, h) => {
+    if (h > 0) return;
+    const look = wallHeight(x, z);
+    const m = new Mesh(new BoxGeometry(0.98, look.h, look.depth), ink);
+    m.position.set(x, look.h / 2, z);
     m.castShadow = true;
     scene.add(m);
   });
 
+  const gapCells: Array<readonly [number, number]> = [];
   terrain.forEachGap((x, z) => {
-    const m = new Mesh(new PlaneGeometry(0.94, 0.94), gapMat);
-    m.rotation.x = -Math.PI / 2;
-    m.position.set(x, 0.004, z);
-    scene.add(m);
+    gapCells.push([x, z]);
   });
+  const gapMesh = new InstancedMesh(
+    new PlaneGeometry(0.94, 0.94),
+    gapMat,
+    Math.max(1, gapCells.length),
+  );
+  gapMesh.count = gapCells.length;
+  const gapDummy = new Object3D();
+  for (let i = 0; i < gapCells.length; i++) {
+    const cell = gapCells[i];
+    if (!cell) continue;
+    gapDummy.position.set(cell[0], 0.004, cell[1]);
+    gapDummy.rotation.set(-Math.PI / 2, 0, 0);
+    gapDummy.updateMatrix();
+    gapMesh.setMatrixAt(i, gapDummy.matrix);
+  }
+  gapMesh.instanceMatrix.needsUpdate = true;
+  gapMesh.frustumCulled = false;
+  scene.add(gapMesh);
 
+  // One instanced draw per height band. A full district bake raises tens of thousands of cells, so
+  // a Mesh per column is not a budget question, it is a hard failure.
+  const columnCells = new Map<number, Array<readonly [number, number]>>();
   terrain.forEachHeight((x, z, h) => {
-    if (h <= 0) return;
-    const side = terrainMats.side.get(h) ?? terrainMats.top;
-    const m = new Mesh(new BoxGeometry(1, h, 1), [side, side, terrainMats.top, side, side, side]);
-    m.position.set(x, h / 2, z);
-    m.castShadow = true;
-    m.receiveShadow = true;
-    scene.add(m);
+    if (h <= 0 || terrain.isWall(x, z)) return;
+    const bucket = columnCells.get(h);
+    if (bucket) bucket.push([x, z]);
+    else columnCells.set(h, [[x, z]]);
   });
+  const columnMeshes: InstancedMesh[] = [];
+  const columnDummy = new Object3D();
+  for (const [h, cells] of columnCells) {
+    const side = terrainMats.side.get(h) ?? terrainMats.top;
+    const mesh = new InstancedMesh(
+      new BoxGeometry(1, h, 1),
+      [side, side, terrainMats.top, side, side, side],
+      cells.length,
+    );
+    for (let i = 0; i < cells.length; i++) {
+      const cell = cells[i];
+      if (!cell) continue;
+      columnDummy.position.set(cell[0], h / 2, cell[1]);
+      columnDummy.rotation.set(0, 0, 0);
+      columnDummy.updateMatrix();
+      mesh.setMatrixAt(i, columnDummy.matrix);
+    }
+    mesh.instanceMatrix.needsUpdate = true;
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    scene.add(mesh);
+    columnMeshes.push(mesh);
+  }
+
+  const pierCells = new Map<number, Array<readonly [number, number]>>();
+  terrain.forEachWall((x, z, h) => {
+    if (h < 1) return;
+    const bucket = pierCells.get(h);
+    if (bucket) bucket.push([x, z]);
+    else pierCells.set(h, [[x, z]]);
+  });
+  const pierMeshes: InstancedMesh[] = [];
+  const pierDummy = new Object3D();
+  for (const [h, cells] of pierCells) {
+    const mesh = new InstancedMesh(new BoxGeometry(1, h, 1), ink, cells.length);
+    for (let i = 0; i < cells.length; i++) {
+      const cell = cells[i];
+      if (!cell) continue;
+      pierDummy.position.set(cell[0], h / 2, cell[1]);
+      pierDummy.rotation.set(0, 0, 0);
+      pierDummy.updateMatrix();
+      mesh.setMatrixAt(i, pierDummy.matrix);
+    }
+    mesh.instanceMatrix.needsUpdate = true;
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    scene.add(mesh);
+    pierMeshes.push(mesh);
+  }
+
+  const water = makeWaterMaterial();
+  const swampMat = makeSwampMaterial();
+  const grass = makeGrassMaterial();
+  const waterMesh = stampSheets(
+    scene,
+    terrain,
+    (fn) => terrain.forEachWater(fn),
+    water.material,
+    0.012,
+  );
+  const swampMesh = stampSheets(scene, terrain, (fn) => terrain.forEachSwamp(fn), swampMat, 0.01);
+  const grassMesh = stampSheets(scene, terrain, (fn) => terrain.forEachGrass(fn), grass.material, 0.008);
 
   const doorSlab = new Mesh(new BoxGeometry(0.98, 3.2, 0.6), ink);
   doorSlab.position.set(DOOR.x, 1.6, DOOR.z);
@@ -195,6 +328,35 @@ export function createWorldView(
   sock.rotation.x = -Math.PI / 2;
   sock.position.set(SOCKET.x, socketH + 0.006, SOCKET.z);
   scene.add(sock);
+
+  const zigH = terrain.height(ZIG_SOCKET.x, ZIG_SOCKET.z);
+  const zigSock = new Mesh(
+    new PlaneGeometry(0.92, 0.92),
+    new MeshBasicNodeMaterial({
+      map: socketTexture(faceTex.fire),
+      transparent: true,
+      opacity: 0.55,
+      depthWrite: false,
+      fog: false,
+    }),
+  );
+  zigSock.rotation.x = -Math.PI / 2;
+  zigSock.position.set(ZIG_SOCKET.x, zigH + 0.006, ZIG_SOCKET.z);
+  scene.add(zigSock);
+
+  const splashMat = new MeshBasicNodeMaterial({
+    color: 0x4a7a88,
+    transparent: true,
+    opacity: 0,
+    depthWrite: false,
+    fog: false,
+  });
+  const splash = new Mesh(new PlaneGeometry(1.15, 1.15), splashMat);
+  splash.rotation.x = -Math.PI / 2;
+  splash.visible = false;
+  splash.renderOrder = 2;
+  scene.add(splash);
+  let splashT = 0;
 
   const cone = toNonIndexedFacets(new ConeGeometry(TURRET_R, TURRET_H, 4));
   const turrets: Mesh[] = [];
@@ -259,7 +421,7 @@ export function createWorldView(
   let lastFlagTick = -1;
 
   return {
-    present(snapshot, dt, clock, rig) {
+    present(snapshot, dt, clock, rig, reduced) {
       const w = snapshot.world;
       if (snapshot.tick !== lastFlagTick) {
         lastFlagTick = snapshot.tick;
@@ -268,6 +430,11 @@ export function createWorldView(
         if ((flags & FLAG_KILL) !== 0) impactShake(rig, SHAKE_SENTRY); // impact: sentry crack
         if ((flags & FLAG_DOOR) !== 0) impactShake(rig, SHAKE_DOOR); // impact: seal opening
         if ((flags & FLAG_BLAST) !== 0) impactShake(rig, SHAKE_BLAST); // impact: sentry blast
+        if ((flags & FLAG_LAND) !== 0 && terrain.isWater(snapshot.player.x, snapshot.player.z)) {
+          splashT = 0.28;
+          splash.position.set(snapshot.player.x, snapshot.player.y + 0.03, snapshot.player.z);
+          splash.visible = true;
+        }
       }
 
       shrine.icon.visible = w.shrineTaken === 0;
@@ -281,6 +448,15 @@ export function createWorldView(
       glyph.icon.rotation.y = clock * 0.8;
       ice.icon.position.y = iceH + 1.05 + 0.1 * Math.sin(clock * 2.2);
       ice.icon.rotation.y = clock * 0.8;
+      zigSock.visible = w.zigTaken === 0;
+
+      if (splashT > 0) {
+        splashT -= dt;
+        splashMat.opacity = Math.max(0, splashT / 0.28) * 0.35;
+        const k = 1 + (0.28 - splashT) * 2.4;
+        splash.scale.set(k, k, 1);
+        splash.visible = splashT > 0;
+      }
 
       if (w.doorOpen !== 0 && doorSlab.position.y > -1.8) {
         doorSlab.position.y -= dt * 1.6;
@@ -290,6 +466,21 @@ export function createWorldView(
 
       npc.position.y = npcH + 0.72 + 0.07 * Math.sin(clock * 1.4);
       npc.rotation.y = clock * 0.35;
+      water.setClock(reduced ? 0 : clock);
+      grass.setClock(reduced ? 0 : clock);
+      if (
+        !reduced &&
+        snapshot.move.mode === MODE_ROLL &&
+        terrain.isGrass(snapshot.move.destX, snapshot.move.destZ)
+      ) {
+        const dur = snapshot.move.duration;
+        const t = dur > 0 ? snapshot.move.phase / dur : 0;
+        const k = t * (1 - t) * 4;
+        const dir = snapshot.move.dir;
+        grass.setLean((DIR_DX[dir] ?? 0) * k, (DIR_DZ[dir] ?? 0) * k);
+      } else {
+        grass.setLean(0, 0);
+      }
 
       for (let i = 0; i < TURRET_COUNT; i++) {
         const mesh = turrets[i];
@@ -343,6 +534,14 @@ export function createWorldView(
         if (resist > 0) mat.color.setRGB(0.28, 0.3, 0.36);
       }
     },
-    dispose() {},
+    dispose() {
+      for (const mesh of [waterMesh, swampMesh, grassMesh, gapMesh, ...columnMeshes, ...pierMeshes]) {
+        mesh.removeFromParent();
+        mesh.geometry.dispose();
+      }
+      water.material.dispose();
+      swampMat.dispose();
+      grass.material.dispose();
+    },
   };
 }

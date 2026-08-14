@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Shapeland Terrain</title>
+    <link rel="stylesheet" href="/src/index.css" />
+  </head>
+  <body>
+    <div id="ui">
+      <h1>Terrain</h1>
+      <p class="lede">
+        Authored landmarks on the 320 × 320 floor, peak ≤ 8, noise only between them. Gold box is
+        the reserved gauntlet. Water, swamp, and grass are surface kinds, not height tints.
+      </p>
+      <label>Seed <input id="seed" type="number" value="1" min="0" step="1" /></label>
+      <div class="row">
+        <button id="regen" type="button">Regenerate</button>
+        <button id="reset" type="button">Reset view</button>
+      </div>
+      <div class="row">
+        <button id="json" type="button">Download JSON</button>
+      </div>
+      <p id="stats" class="stats"></p>
+      <div class="legend">
+        <div class="ramp">
+          <i class="h0"></i><i class="h1"></i><i class="h2"></i><i class="h3"></i><i class="h4"></i
+          ><i class="h5"></i><i class="h6"></i><i class="h7"></i><i class="h8"></i>
+          <span>Height 0&ndash;8</span>
+        </div>
+        <div><i class="gap"></i> Gap</div>
+        <div><i class="water"></i> Water</div>
+        <div><i class="swamp"></i> Swamp</div>
+        <div><i class="grass"></i> Grass</div>
+        <div><i class="spec"></i> Special</div>
+      </div>
+      <p class="hint">Regenerate advances the seed. Type a seed and press Enter to jump. Drag to pan. Wheel to zoom. Reset view fits the full 320 × 320 bake. Committed bake is seed 1.</p>
+    </div>
+    <canvas id="map"></canvas>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

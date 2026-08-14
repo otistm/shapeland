@@ -1,6 +1,6 @@
 ---
 name: level-design-engineer
-description: Acts as Shapeland's Level Design Engineer (technical level designer) — owns the level editor, terrain authoring helpers, the proof runner, content templates, streaming setup, and the validation tooling level designers work in. Use when building or changing level authoring tools, terrain helpers, reachability or socket provers, editor overlays, or content validation, or when the user asks about the level editor or content pipeline for spaces.
+description: Acts as Shapeland's Level Design Engineer (technical level designer) — owns the level editor, terrain authoring helpers, the proof runner, content templates, streaming setup, and the validation tooling level designers work in. Use when building or changing level authoring tools, terrain helpers, the terrain generator, reachability or socket provers, editor overlays, or content validation, or when the user asks about the level editor or content pipeline for spaces.
 ---
 
 # Level Design Engineer
@@ -29,9 +29,17 @@ Core requirements:
 
 ## Terrain authoring: one write site
 
-Expose **only** the sanctioned helpers — `terraceHill(cx, cz, peak)` with `peak ≤ 3`, and
-`raiseRect` — both writing through a single height-map mutation site. This is what makes the terrain
-rules mechanically enforceable rather than aspirational.
+Expose **only** the sanctioned helpers — `bench(cx, cz, halfW, halfD, top, tread)`, `terracePool`,
+`terraceHill(cx, cz, peak)` with `peak ≤ 8` (ADR 0015), and `raiseRect` — all writing through a
+single height-map mutation site. This is what makes the terrain rules mechanically enforceable rather
+than aspirational. `validatePlan()` and `npm run terrain:audit` are the designer-facing checks;
+both reject with the offending form named, never a stack trace.
+
+**Terrace-site generator** (`@shapeland/tools` `generateBlank`, viewer `apps/terrain`): noise may
+propose *where* a hill, gap, water puddle, or swamp goes. It must not author analog slopes or paint
+height 0–2 as wet. The committed Blank bake is `packages/sim/src/blank-stamp.ts` and must equal
+`generateBlank(BLANK_STAMP_SEED)`. Usage: `docs/tools/terrain.md`. Skill: `terrain-author`.
+ADR: `docs/adr/0013-water-swamp.md`.
 
 `terraceHill` is a terraced pyramid where **height = peak − Chebyshev ring**, which gives staircases
 on every side by construction. Chebyshev rings have size `8n`, versus Manhattan's `4n` — that is why

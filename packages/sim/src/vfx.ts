@@ -19,7 +19,7 @@ import { freezePatch, iceMelt } from "./ice";
 import { ABILITY_FIRE, ABILITY_ICE, ABILITY_LIGHTNING, ABILITY_PHYSICAL } from "./loadout";
 import { UP } from "./orientation";
 import { type RngBank, sfc32Next } from "./rng";
-import { packXZ, type Terrain } from "./terrain";
+import { type Terrain, packXZ } from "./terrain";
 
 export interface VfxHost {
   x: number;

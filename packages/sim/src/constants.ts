@@ -25,7 +25,8 @@ export const FALL_GRAV_MUL = 1.4;
 export const FALL_KILL_Y = -3.5;
 export const CLIFF_DELTA = 2;
 
-export const CAM_OFFSET = [0, 8, 15.45] as const;
+/** Pulled back ~15% from (0, 8, 15.45) so height-8 forms stay in frame. Pitch held at ~27.4°. */
+export const CAM_OFFSET = [0, 9.2, 17.77] as const;
 export const CAM_FOV = 42;
 export const CAM_AIM = 0.55;
 export const CAM_FOLLOW = 5.2;
@@ -59,12 +60,23 @@ export const FIRE = "#ff5a1f";
 export const LIGHTNING = "#3b46e0";
 export const PHYSICAL = "#3a3a44";
 export const ICE = "#1aa7c4";
+/** Wet sheet. Distinct from ice cyan; saturation on white, not a height-band tint. */
+export const WATER = "#2e5461";
+/** Mud sheet. Olive-grey; slower rolls teach the footing. */
+export const SWAMP = "#4a5244";
+/** Meadow sheet. Sage; faster rolls teach the spring. */
+export const GRASS = "#5e7044";
 export const NORMAL = "#c2beb8";
 export const GLYPH_HALO = "rgba(238,244,252,0.95)";
 export const GRID_MAJOR = "rgba(132,148,196,0.78)";
 export const GRID_MINOR = "rgba(146,161,205,0.48)";
 export const GRID_PERIOD = 4;
 export const FLOOR_SIZE = 320;
+/** Inclusive cell range of the Blank bake. One cell per floor unit: 320 × 320 = 102_400 squares. */
+export const BLANK_X0 = -(FLOOR_SIZE >> 1);
+export const BLANK_X1 = (FLOOR_SIZE >> 1) - 1;
+export const BLANK_Z0 = BLANK_X0;
+export const BLANK_Z1 = BLANK_X1;
 export const SHADOW_EXTENT = 22;
 export const SHADOW_FAR = 70;
 export const SHADOW_RADIUS = 1.8;
@@ -79,6 +91,10 @@ export const FOG_COLOR = 0xffffff;
 
 export const JUMP_BUFFER_TICKS = 24;
 export const ROLL_TICKS = 23;
+/** ~1.52× a dry roll. Sticky footing costs tempo; not a second quarter-turn. */
+export const SWAMP_ROLL_TICKS = 35;
+/** ~0.78× a dry roll. Springy footing returns tempo; not a second quarter-turn. */
+export const GRASS_ROLL_TICKS = 18;
 export const CROUCH_TICKS = 17;
 export const TUCK_TICKS = 41;
 /** 120Hz hang-zone integrator; ~0.717s, matching FLIGHT_DUR ≈ 0.72. */
@@ -208,6 +224,7 @@ export const BANNER_GLYPH = 3;
 export const BANNER_CRACK = 4;
 export const BANNER_CLEAR = 5;
 export const BANNER_ICE = 6;
+export const BANNER_ZIG = 7;
 
 export const FLAG_HURT = 1 << 6;
 export const FLAG_KILL = 1 << 7;
@@ -219,4 +236,20 @@ export const SKY_TOP = 1.0;
 export const SKY_SIDE = 0.78;
 export const SKY_CREV = 0.86;
 export const SKY_STACK = 0.055;
-export const TERRAIN_PEAK_MAX = 3;
+/**
+ * Tallest authored terrain form. 8 is not arbitrary: it is in the preferred dimension set
+ * (1,2,3,5,8,13,21,34,55), it is exactly one legal stair flight (8–13 risers before a landing is
+ * required), and it is the "minor marker, readable at 40 cells" landmark tier. A 1:1 apron from 8
+ * costs 8 cells of run on every side, which is why tall forms are broad — that is the honest price
+ * of "a slope is a staircase". See ADR 0015.
+ */
+export const TERRAIN_PEAK_MAX = 8;
+/** Noise-scattered filler stays under the named landmarks so the skyline reads as authored. */
+export const TERRAIN_FILLER_PEAK_MAX = 5;
+/**
+ * Tallest structure mass. 21 is a regional monolith (readable at ~100 cells). It is occupancy, not
+ * a walkable height — a 21u pier does not grow a 21-cell apron. See ADR 0017.
+ */
+export const STRUCTURE_PEAK_MAX = 21;
+/** Superstructure on a landform plinth, still in the preferred set. */
+export const STRUCTURE_MARK = 13;

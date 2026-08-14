@@ -53,6 +53,7 @@ export function bindKeyboard(target: EventTarget, onMask: (mask: number) => void
   const onDown = (ev: Event) => {
     const kev = ev as KeyboardEvent;
     if (KEY_MASK[kev.code] === undefined) return;
+    kev.preventDefault();
     down.add(kev.code);
     emit();
   };
@@ -61,11 +62,28 @@ export function bindKeyboard(target: EventTarget, onMask: (mask: number) => void
     down.delete(kev.code);
     emit();
   };
+  /** Lost keyup (alt-tab, iframe blur) would otherwise chain the last cardinal forever. */
+  const clearHeld = () => {
+    if (down.size === 0) return;
+    down.clear();
+    emit();
+  };
+  const onVis = () => {
+    if (typeof document !== "undefined" && document.visibilityState !== "visible") clearHeld();
+  };
   target.addEventListener("keydown", onDown);
   target.addEventListener("keyup", onUp);
+  target.addEventListener("blur", clearHeld);
+  const win = typeof window !== "undefined" ? window : undefined;
+  const doc = typeof document !== "undefined" ? document : undefined;
+  if (win && win !== target) win.addEventListener("blur", clearHeld);
+  doc?.addEventListener("visibilitychange", onVis);
   return () => {
     target.removeEventListener("keydown", onDown);
     target.removeEventListener("keyup", onUp);
+    target.removeEventListener("blur", clearHeld);
+    if (win && win !== target) win.removeEventListener("blur", clearHeld);
+    doc?.removeEventListener("visibilitychange", onVis);
   };
 }
 

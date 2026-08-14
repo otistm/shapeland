@@ -4,17 +4,18 @@ import {
   If,
   attribute,
   float,
-  hash,
   length,
   mix,
   smoothstep,
-  time,
+  uniform,
   uv,
   vec2,
   vec3,
   vec4,
 } from "three/tsl";
 import { DoubleSide, InstancedBufferAttribute, MeshBasicNodeMaterial } from "three/webgpu";
+import { fbm2 } from "./tsl-noise";
+import type { AnimatedSurface } from "./water-mat";
 
 /** TSL twin of `sim/fire-ramp.ts`. Keep the stops in lockstep. */
 export const fireRampFn = /* @__PURE__ */ Fn(([T]: [ReturnType<typeof float>]) => {
@@ -26,51 +27,42 @@ export const fireRampFn = /* @__PURE__ */ Fn(([T]: [ReturnType<typeof float>]) =
   return mix(c, vec3(1, 0.97, 0.88), smoothstep(0.82, 0.97, t));
 });
 
-function valueNoise(p: ReturnType<typeof vec2>): ReturnType<typeof float> {
-  const i = p.floor();
-  const f = p.fract();
-  const u = f.mul(f).mul(float(3).sub(f.mul(2)));
-  const a = hash(i.dot(vec2(1, 57)));
-  const b = hash(i.add(vec2(1, 0)).dot(vec2(1, 57)));
-  const c = hash(i.add(vec2(0, 1)).dot(vec2(1, 57)));
-  const d = hash(i.add(vec2(1, 1)).dot(vec2(1, 57)));
-  return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
-}
+export function makeFireMaterial(): AnimatedSurface {
+  // Same clock rule as water: TSL `time` lives in the shared render group and does not advance on
+  // the WebGL2 fallback. Render owns the value; `onFrameUpdate` is the only write that dirties the UBO.
+  let seconds = 0;
+  const clock = uniform(0).onFrameUpdate(() => seconds);
 
-/** Two octaves of PCG value-noise. Integer hash, not sin/fract. */
-const fbm2 = /* @__PURE__ */ Fn(([p]: [ReturnType<typeof vec2>]) => {
-  const octave = p.mul(2.07) as unknown as ReturnType<typeof vec2>;
-  return valueNoise(p).mul(0.65).add(valueNoise(octave).mul(0.35));
-});
-
-const fireDisc = /* @__PURE__ */ Fn(() => {
-  const T = attribute("aT", "float");
-  const A = attribute("aA", "float");
-  const seed = attribute("aSeed", "float");
-  const q = uv().sub(0.5);
-  const r = length(q).mul(2);
-  const n = fbm2(
-    q.mul(3.1).add(vec2(seed.mul(13.7), seed.mul(7.1).sub(time.mul(1.9)))) as unknown as ReturnType<
-      typeof vec2
-    >,
-  );
-  const cool = float(1).sub(T);
-  const d = r.sub(float(0.9).sub(cool.mul(0.4))).add(
-    float(0.52)
-      .sub(n)
-      .mul(float(0.6).add(cool.mul(0.85))),
-  );
-  const a = float(1)
-    .sub(smoothstep(-0.22, 0.1, d))
-    .mul(A);
-  If(a.lessThan(0.012), () => {
-    Discard();
+  const fireDisc = Fn(() => {
+    const T = attribute("aT", "float");
+    const A = attribute("aA", "float");
+    const seed = attribute("aSeed", "float");
+    const q = uv().sub(0.5);
+    const r = length(q).mul(2);
+    const n = fbm2(
+      q
+        .mul(3.1)
+        .add(vec2(seed.mul(13.7), seed.mul(7.1).sub(clock.mul(1.9)))) as unknown as ReturnType<
+        typeof vec2
+      >,
+    );
+    const cool = float(1).sub(T);
+    const d = r.sub(float(0.9).sub(cool.mul(0.4))).add(
+      float(0.52)
+        .sub(n)
+        .mul(float(0.6).add(cool.mul(0.85))),
+    );
+    const a = float(1)
+      .sub(smoothstep(-0.22, 0.1, d))
+      .mul(A);
+    If(a.lessThan(0.012), () => {
+      Discard();
+    });
+    const col = fireRampFn(T as unknown as ReturnType<typeof float>);
+    return vec4(col, a);
   });
-  const col = fireRampFn(T as unknown as ReturnType<typeof float>);
-  return vec4(col, a);
-});
+  const out = fireDisc();
 
-export function makeFireMaterial(): MeshBasicNodeMaterial {
   const material = new MeshBasicNodeMaterial();
   material.transparent = true;
   material.premultipliedAlpha = true;
@@ -78,10 +70,15 @@ export function makeFireMaterial(): MeshBasicNodeMaterial {
   material.depthTest = true;
   material.side = DoubleSide;
   material.fog = false;
-  const out = fireDisc();
   material.colorNode = out.xyz;
   material.opacityNode = out.w;
-  return material;
+
+  return {
+    material,
+    setClock(next: number) {
+      seconds = next;
+    },
+  };
 }
 
 export function makeVfxUnlit(color: number, opacity = 1): MeshBasicNodeMaterial {
@@ -94,6 +91,23 @@ export function makeVfxUnlit(color: number, opacity = 1): MeshBasicNodeMaterial 
     fog: false,
   });
   material.premultipliedAlpha = true;
+  return material;
+}
+
+/** Ice sheet. A hard leading edge so the slick cell reads as a shape, not a tint. */
+export function makeIceMaterial(): MeshBasicNodeMaterial {
+  const material = new MeshBasicNodeMaterial();
+  material.transparent = true;
+  material.premultipliedAlpha = true;
+  material.depthWrite = false;
+  material.depthTest = true;
+  material.fog = false;
+  const edge = smoothstep(0.72, 0.78, uv().x);
+  const fill = vec3(0.102, 0.655, 0.769);
+  const rim = vec3(0.22, 0.78, 0.88);
+  const alpha = float(0.42).add(edge.mul(0.22));
+  material.colorNode = mix(fill, rim, edge).mul(alpha);
+  material.opacityNode = alpha;
   return material;
 }
 

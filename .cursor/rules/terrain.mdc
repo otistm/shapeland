@@ -1,0 +1,19 @@
+---
+description: Terrain is integer Chebyshev terraces; the generator proposes sites only.
+globs: "**/terrain*.ts"
+alwaysApply: false
+---
+
+# Terrain authoring
+
+- Peak ≤ 8 (`TERRAIN_PEAK_MAX`), noise filler ≤ 5. No ramps. No sub-cell height. No analog noise in
+  `sim`. Forms are `bench` / `terracePool` / `terraceHill`; a tall form is broad because its apron is
+  a staircase. Never a sheer mass.
+- Named places are authored in `packages/tools/src/blank-plan.ts`, each measured from a real landform.
+- Generator output is terrace sites + gaps + water + swamp + grass. Stamp through `terraceHill` /
+  `setGap` / `setWater` / `setSwamp` / `setGrass`. Surface kind is not height.
+- Committed Blank bake: `packages/sim/src/blank-stamp.ts` ↔ `generateBlank(BLANK_STAMP_SEED)`.
+  Covers the 320 × 320 floor mesh. `SLICE_RESERVE` stays clear of Blank noise.
+- After restamp: `npm run prove`. Spine to the shrine stays flat.
+- Tooling: `npm run terrain`, `docs/tools/terrain.md`, ADR 0012, ADR 0013, ADR 0014, skill
+  `terrain-author`.

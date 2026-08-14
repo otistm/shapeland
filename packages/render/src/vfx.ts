@@ -29,7 +29,7 @@ import {
   type Scene,
 } from "three/webgpu";
 import { type CameraRig, impactKick, impactShake } from "./camera";
-import { fireInstanceAttrs, makeFireMaterial, makeVfxUnlit } from "./fire-mat";
+import { fireInstanceAttrs, makeFireMaterial, makeIceMaterial, makeVfxUnlit } from "./fire-mat";
 
 const LIGHT_POOL = 4;
 const DECAL_MAX = 256;
@@ -120,13 +120,13 @@ function ribbonIndex(maxVerts: number): Uint16Array {
 
 export function createVfx(scene: Scene, rig: CameraRig): VfxSystem {
   const dummy = new Object3D();
-  const fireMat = makeFireMaterial();
+  const fire = makeFireMaterial();
   const fireGeo = new PlaneGeometry(1, 1);
   const attrs = fireInstanceAttrs(FIRE_MAX);
   fireGeo.setAttribute("aT", attrs.t);
   fireGeo.setAttribute("aA", attrs.a);
   fireGeo.setAttribute("aSeed", attrs.seed);
-  const fireMesh = new InstancedMesh(fireGeo, fireMat, FIRE_MAX);
+  const fireMesh = new InstancedMesh(fireGeo, fire.material, FIRE_MAX);
   fireMesh.frustumCulled = false;
   fireMesh.renderOrder = 5;
   fireMesh.count = 0;
@@ -141,7 +141,7 @@ export function createVfx(scene: Scene, rig: CameraRig): VfxSystem {
   decalMesh.count = 0;
   scene.add(decalMesh);
 
-  const iceMat = makeVfxUnlit(0x1aa7c4, 0.42);
+  const iceMat = makeIceMaterial();
   const iceMesh = new InstancedMesh(new PlaneGeometry(1.15, 1.15), iceMat, ICE_MAX);
   iceMesh.frustumCulled = false;
   iceMesh.renderOrder = 1;
@@ -263,6 +263,7 @@ export function createVfx(scene: Scene, rig: CameraRig): VfxSystem {
   return {
     present(snapshot, dt, cube, reduced) {
       clock += dt;
+      fire.setClock(reduced ? 0 : clock);
       const v = snapshot.vfx;
       if (v.pulse !== 0 && snapshot.tick !== lastPulseTick) {
         lastPulseTick = snapshot.tick;
@@ -456,7 +457,7 @@ export function createVfx(scene: Scene, rig: CameraRig): VfxSystem {
       spreadMesh.removeFromParent();
       for (const light of lights) light.removeFromParent();
       fireGeo.dispose();
-      fireMat.dispose();
+      fire.material.dispose();
       decalMat.dispose();
       iceMat.dispose();
       ionMat.dispose();

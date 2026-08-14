@@ -5,7 +5,7 @@ Status: Accepted
 ## Context
 
 Sim orientation is Z-up (`docs/kb/geometry.md`): face `0=+Z` is up, and `upFace(i) = i >> 2`.
-Three.js is Y-up. The camera sits at `CAM_OFFSET (0, 8, 15.45)` looking toward −Z, so screen-up
+Three.js is Y-up. The camera sits at `CAM_OFFSET (0, 9.2, 17.77)` looking toward −Z, so screen-up
 is world −Z.
 
 ## Decision

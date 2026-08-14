@@ -15,4 +15,5 @@ export const FRAME_BUDGET_MS = {
   input: 1,
   camera: 1,
   ice: 1,
+  water: 1,
 } as const;

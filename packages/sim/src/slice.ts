@@ -1,4 +1,14 @@
 import {
+  BLANK_BENCHES,
+  BLANK_GAPS,
+  BLANK_GRASS,
+  BLANK_HILLS,
+  BLANK_PIERS,
+  BLANK_POOLS,
+  BLANK_SWAMP,
+  BLANK_WATER,
+} from "./blank-stamp";
+import {
   BANNER_CLEAR,
   BANNER_CRACK,
   BANNER_DOOR,
@@ -6,6 +16,7 @@ import {
   BANNER_ICE,
   BANNER_NONE,
   BANNER_SHRINE,
+  BANNER_ZIG,
   FLAG_AIR_LAND,
   FLAG_BLAST,
   FLAG_DOOR,
@@ -35,12 +46,20 @@ import {
   TURRET_STATE_AIM,
   TURRET_STATE_COOL,
 } from "./constants";
-import { ABILITY_FIRE, ABILITY_ICE, ABILITY_LIGHTNING, ABILITY_PHYSICAL, grantAbility } from "./loadout";
+import {
+  ABILITY_FIRE,
+  ABILITY_ICE,
+  ABILITY_LIGHTNING,
+  ABILITY_PHYSICAL,
+  grantAbility,
+} from "./loadout";
 import { DOWN, UP } from "./orientation";
-import { type Terrain, terraceHill } from "./terrain";
+import { type Terrain, bench, terraceHill, terracePool } from "./terrain";
 
 export const SHRINE = { x: 0, z: -7 } as const;
 export const SOCKET = { x: 0, z: -20 } as const;
+/** Fire-down seal on the ziggurat summit. First Blank socket outside the gauntlet. */
+export const ZIG_SOCKET = { x: -56, z: 121 } as const;
 export const DOOR = { x: 0, z: -22 } as const;
 export const GLYPH = { x: 0, z: -25 } as const;
 export const ICE_GLYPH = { x: 2, z: -26 } as const;
@@ -55,10 +74,13 @@ export const TURRET_SITES: ReadonlyArray<readonly [number, number]> = [
   [1, -19],
 ];
 
-export const SLICE_HILLS: ReadonlyArray<readonly [number, number, number]> = [
-  [7, -3, 3],
-  [-7, -16, 2],
-];
+export const SLICE_HILLS: ReadonlyArray<readonly [number, number, number]> = [[-7, -16, 2]];
+
+/**
+ * Authored gauntlet + chamber, plus 2-cell air. Blank noise must not terrace, gap, or wet this box.
+ * Inclusive AABB in cell coordinates.
+ */
+export const SLICE_RESERVE = { x0: -9, x1: 9, z0: -30, z1: -10 } as const;
 
 const CROSS_DX = [0, 1, -1, 0, 0] as const;
 const CROSS_DZ = [0, 0, 0, 1, -1] as const;
@@ -90,6 +112,7 @@ export interface SliceHost {
   shrineTaken: number;
   glyphTaken: number;
   iceTaken: number;
+  zigTaken: number;
   iframes: number;
   npcRange: number;
   banner: number;
@@ -119,6 +142,18 @@ export function stampSlice(terrain: Terrain): void {
   }
   for (let x = -3; x <= 3; x++) terrain.setWall(x, -28);
   for (const [cx, cz, peak] of SLICE_HILLS) terraceHill(terrain, cx, cz, peak);
+  for (const [cx, cz, hw, hd, top, tread] of BLANK_BENCHES) {
+    bench(terrain, cx, cz, hw, hd, top, tread);
+  }
+  for (const [cx, cz, hw, hd, rim, steps] of BLANK_POOLS) {
+    terracePool(terrain, cx, cz, hw, hd, rim, steps);
+  }
+  for (const [cx, cz, peak] of BLANK_HILLS) terraceHill(terrain, cx, cz, peak);
+  for (const [x, z, h] of BLANK_PIERS) terrain.setPier(x, z, h);
+  for (const [x, z] of BLANK_GAPS) terrain.setGap(x, z);
+  for (const [x, z] of BLANK_WATER) terrain.setWater(x, z);
+  for (const [x, z] of BLANK_SWAMP) terrain.setSwamp(x, z);
+  for (const [x, z] of BLANK_GRASS) terrain.setGrass(x, z);
 }
 
 export function bootSlice(w: SliceHost): void {
@@ -130,6 +165,7 @@ export function bootSlice(w: SliceHost): void {
   w.shrineTaken = 0;
   w.glyphTaken = 0;
   w.iceTaken = 0;
+  w.zigTaken = 0;
   w.turretAlive = (1 << TURRET_COUNT) - 1;
   for (let i = 0; i < TURRET_COUNT; i++) {
     const site = TURRET_SITES[i];
@@ -327,6 +363,12 @@ export function stepSlice(w: SliceHost): void {
     }
     if (w.doorOpen === 0 && w.x === SOCKET.x && w.z === SOCKET.z) {
       if ((w.faces[DOWN(w.orientation)] ?? 0) === ABILITY_FIRE) openDoor(w);
+    }
+    if (w.zigTaken === 0 && w.x === ZIG_SOCKET.x && w.z === ZIG_SOCKET.z) {
+      if ((w.faces[DOWN(w.orientation)] ?? 0) === ABILITY_FIRE) {
+        w.zigTaken = 1;
+        w.banner = BANNER_ZIG;
+      }
     }
   }
 

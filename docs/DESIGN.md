@@ -119,13 +119,14 @@ restated locally.
 **Movement** — `ROLL_DUR .19` · ease `t²(2.2−1.2t)` · `JUMP_V0 7.6` · `GRAV 25` · hang `2.3 @ .62`
 · `FLIGHT_DUR ≈ .72` · `LEAP_CELLS 2` · `JUMP_BUFFER .20` · `TUCK_DUR .34` · squash `300/21`.
 
-**Camera** — offset `(0, 8, 15.45)` · FOV 42 · aim `.55` · follow `5.2/s` · climb `4.5/s` ·
+**Camera** — offset `(0, 9.2, 17.77)` · FOV 42 · aim `.55` · follow `5.2/s` · climb `4.5/s` ·
 lookahead `.85 @ 4/s` · fog `42/110` · shadow `±22/70`, radius 1.8, bias `−.0012`.
 
 **Combat** — `AOE_R 1.55` · kill pad `+0.8` · turret aim `1.5` / cool `1.6` / range `6.5` · spin
 `.5 → +12·k^1.6` · `TELE 0xb8412a` · i-frames `1.0` · integrity `3`.
 
-**Terrain** — sky exposure `1.0 / .78 / ×.86 / −.055` · `peak ≤ 3` · `CAM_CLIMB 4.5`.
+**Terrain** — sky exposure `1.0 / .78 / ×.86 / −.055` · `peak ≤ 8`, noise filler `≤ 5` (ADR 0015) ·
+`CAM_CLIMB 4.5`.
 
 **Toon** — bands `[.62, .84, 1.0]`. **Shake** — floor `.004`, impacts `.05–.20`. **Input** — pad
 dead zone `.38`, touch `.36`, `STICK_R 40`.

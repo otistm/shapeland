@@ -20,6 +20,9 @@
     "prove": "tsx packages/tools/src/prove-cli.ts",
     "replay": "tsx packages/tools/src/replay-cli.ts",
     "corpus": "tsx packages/tools/src/record-corpus.ts",
+    "terrain": "npm --prefix apps/terrain run dev",
+    "terrain:gen": "tsx packages/tools/src/terrain-cli.ts",
+    "terrain:audit": "tsx packages/tools/src/terrain-audit-cli.ts",
     "e2e": "playwright test"
   },
   "devDependencies": {

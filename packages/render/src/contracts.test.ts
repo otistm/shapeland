@@ -34,6 +34,17 @@ describe("render contracts", () => {
     expect(hits).toEqual([]);
   });
 
+  it("has exactly one value-noise definition", () => {
+    const files: string[] = [];
+    walk(RENDER_SRC, files);
+    const hits: string[] = [];
+    for (const file of files) {
+      const n = (readFileSync(file, "utf8").match(/function valueNoise\(/g) ?? []).length;
+      if (n) hits.push(`${file.slice(RENDER_SRC.length + 1)}:${n}`);
+    }
+    expect(hits).toEqual(["tsl-noise.ts:1"]);
+  });
+
   it("labels every impact shake source", () => {
     const files: string[] = [];
     walk(RENDER_SRC, files);

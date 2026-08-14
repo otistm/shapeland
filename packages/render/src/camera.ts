@@ -26,6 +26,8 @@ export interface CameraRig {
   kickY: number;
   kickV: number;
   shake: number;
+  /** Extra camera Y to clear a column on the look vector. Resting heights only. */
+  occludeY: number;
 }
 
 export interface CameraInput {
@@ -38,10 +40,40 @@ export interface CameraInput {
   aimX?: number;
   aimZ?: number;
   dt: number;
+  /** Resting terrain height at integer cells. Used to lift over occluding columns. */
+  heightAt?: (x: number, z: number) => number;
 }
 
 function expSmooth(lambda: number, dt: number): number {
   return 1 - Math.exp(-lambda * dt);
+}
+
+/**
+ * Extra camera Y so a column between the cube and the rig does not hide the player.
+ * Samples integer cells on the +Z look vector using resting heights only — never the eased cube.
+ */
+export function occlusionLift(
+  heightAt: (x: number, z: number) => number,
+  followX: number,
+  followZ: number,
+  restY: number,
+): number {
+  const dz = CAM_OFFSET[2];
+  if (dz <= 0) return 0;
+  const camY = restY + CAM_OFFSET[1];
+  const aimY = restY + CAM_AIM;
+  const ix = followX < 0 ? -Math.round(-followX) : Math.round(followX);
+  const i0 = (followZ < 0 ? Math.ceil(followZ) : Math.floor(followZ)) + 1;
+  const i1 = Math.floor(followZ + dz);
+  let lift = 0;
+  for (let iz = i0; iz <= i1; iz++) {
+    const t = (iz - followZ) / dz;
+    if (t <= 0 || t >= 1) continue;
+    const rayY = aimY + (camY - aimY) * t;
+    const need = heightAt(ix, iz) + 0.85 - rayY;
+    if (need > lift) lift = need;
+  }
+  return lift;
 }
 
 export function cameraOffsetLength(): number {
@@ -69,6 +101,7 @@ export function createCameraRig(): CameraRig {
     kickY: 0,
     kickV: 0,
     shake: 0,
+    occludeY: 0,
   };
 }
 
@@ -89,8 +122,13 @@ export function stepCamera(rig: CameraRig, input: CameraInput, ready: { current:
   rig.target.z = input.followZ + rig.lookAheadZ;
 
   const wantX = rig.target.x + CAM_OFFSET[0];
-  const wantY = rig.target.y + CAM_OFFSET[1];
+  let wantY = rig.target.y + CAM_OFFSET[1];
   const wantZ = rig.target.z + CAM_OFFSET[2];
+  if (input.heightAt) {
+    const lift = occlusionLift(input.heightAt, input.followX, input.followZ, input.restY);
+    rig.occludeY += (lift - rig.occludeY) * expSmooth(CAM_FOLLOW, input.dt);
+    wantY += rig.occludeY;
+  }
 
   if (!ready.current) {
     rig.position.x = wantX;
@@ -133,4 +171,5 @@ export function clearCameraFeel(rig: CameraRig): void {
   rig.shake = 0;
   rig.kickY = 0;
   rig.kickV = 0;
+  rig.occludeY = 0;
 }

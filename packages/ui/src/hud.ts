@@ -25,6 +25,7 @@ import {
   armedCount,
   axisClash,
   hex32,
+  nearestPlace,
 } from "@shapeland/sim";
 import type { AbilityCanvases } from "./canvases";
 import { abilityUrls } from "./canvases";
@@ -201,6 +202,8 @@ export function mountHud(host: HTMLElement, opts: HudOptions): HudHandle {
   let dialogIdx = 0;
   let dialogLines: readonly string[] = [];
   let lastRegion = -1;
+  let lastPlace = "";
+  let placeArmed = false;
   let locUntil = 0;
   let bannerUntil = 0;
   let lastBannerTick = -1;
@@ -449,11 +452,29 @@ export function mountHud(host: HTMLElement, opts: HudOptions): HudHandle {
       const downKind = kindOf(snapshot.player.faces[down] ?? 0);
       paintArmed(snapshot, upKind, downKind);
       const now = Date.now();
-      if (snapshot.world.sliceOn !== 0 && snapshot.world.region !== lastRegion) {
-        lastRegion = snapshot.world.region;
-        locTitle.textContent = REGION_NAME[lastRegion] ?? "";
-        locname.classList.add("show");
-        locUntil = now + 3400;
+      if (snapshot.world.sliceOn !== 0) {
+        placeArmed = false;
+        lastPlace = "";
+        if (snapshot.world.region !== lastRegion) {
+          lastRegion = snapshot.world.region;
+          locTitle.textContent = REGION_NAME[lastRegion] ?? "";
+          locname.classList.add("show");
+          locUntil = now + 3400;
+        }
+      } else {
+        const place = nearestPlace(snapshot.player.x, snapshot.player.z);
+        const name = place?.name ?? "";
+        if (!placeArmed) {
+          lastPlace = name;
+          placeArmed = true;
+        } else if (name !== lastPlace) {
+          lastPlace = name;
+          if (name !== "") {
+            locTitle.textContent = name;
+            locname.classList.add("show");
+            locUntil = now + 3400;
+          }
+        }
       }
       if (locUntil > 0 && now >= locUntil) {
         locname.classList.remove("show");

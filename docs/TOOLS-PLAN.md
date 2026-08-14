@@ -95,6 +95,10 @@ The prototype's honest caveat was "logic-verified, visually unverified". This re
   from it, and then it lies. This is non-negotiable.
 - Authoring surface: paint heights via the sanctioned helpers only (`terraceHill`, `raiseRect`) so
   the one-write-site rule holds; place sockets, sentries, NPCs, pickups, region bounds.
+- **Terrace-site generator (first slice):** `apps/terrain` + `packages/tools/src/terrain-gen.ts`.
+  Authored districts plus seeded integer filler, peak ≤ 8, committed bake
+  `packages/sim/src/blank-stamp.ts`. See
+  `docs/tools/terrain.md` and ADR 0012. Do not ingest analog 1000² noise into sim.
 - **Live link to a running game**: edit, and the running sim reloads content without losing
   position. This is the single biggest throughput multiplier for level work.
 - Undo/redo via the command pattern (each edit is a serializable command), which also gives a

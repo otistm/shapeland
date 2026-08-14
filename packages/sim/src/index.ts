@@ -1,3 +1,4 @@
+export * from "./blank-stamp";
 export * from "./constants";
 export * from "./fire";
 export * from "./fire-ramp";
@@ -12,9 +13,11 @@ export * from "./move-proof";
 export * from "./movement";
 export * from "./orientation";
 export * from "./orientation-group";
+export * from "./places";
 export * from "./replay";
 export * from "./rng";
 export * from "./slice";
+export * from "./structure";
 export * from "./snapshot";
 export * from "./terrain";
 export * from "./terrain-proof";

@@ -71,6 +71,7 @@ export interface WorldSliceSnapshot {
   shrineTaken: number;
   glyphTaken: number;
   iceTaken: number;
+  zigTaken: number;
   iframes: number;
   npcRange: number;
   banner: number;
@@ -156,6 +157,7 @@ export function createWorldSliceSnapshot(): WorldSliceSnapshot {
     shrineTaken: 0,
     glyphTaken: 0,
     iceTaken: 0,
+    zigTaken: 0,
     iframes: 0,
     npcRange: 0,
     banner: 0,
@@ -282,6 +284,7 @@ export function copyWorldSlice(src: WorldSliceSnapshot, dest: WorldSliceSnapshot
   dest.shrineTaken = src.shrineTaken;
   dest.glyphTaken = src.glyphTaken;
   dest.iceTaken = src.iceTaken;
+  dest.zigTaken = src.zigTaken;
   dest.iframes = src.iframes;
   dest.npcRange = src.npcRange;
   dest.banner = src.banner;
@@ -360,6 +363,7 @@ export function snapshotsEqual(a: SimSnapshot, b: SimSnapshot): boolean {
     a.world.shrineTaken === b.world.shrineTaken &&
     a.world.glyphTaken === b.world.glyphTaken &&
     a.world.iceTaken === b.world.iceTaken &&
+    a.world.zigTaken === b.world.zigTaken &&
     a.world.iframes === b.world.iframes &&
     a.world.npcRange === b.world.npcRange &&
     a.world.banner === b.world.banner &&

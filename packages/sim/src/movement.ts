@@ -15,6 +15,7 @@ import {
   FLAG_LAUNCH,
   FLAG_PIVOT,
   FLAG_REFUSE,
+  GRASS_ROLL_TICKS,
   GRAV,
   HANG,
   HANG_AT,
@@ -30,10 +31,11 @@ import {
   MODE_TUCK,
   ROLL_TICKS,
   SLIDE_CELL_TICKS,
+  SWAMP_ROLL_TICKS,
   TUCK_TICKS,
 } from "./constants";
-import { dirFromMask } from "./input";
 import { iceHas, slideEnd } from "./ice";
+import { dirFromMask } from "./input";
 import { rollTowardDir } from "./orientation";
 import type { Terrain } from "./terrain";
 
@@ -76,6 +78,12 @@ export function canRollTo(terrain: Terrain, x: number, z: number, tx: number, tz
   if (terrain.isWall(tx, tz) || terrain.isGap(tx, tz)) return false;
   const dh = terrain.height(tx, tz) - terrain.height(x, z);
   return dh <= 1 && dh >= -1;
+}
+
+function rollTicksInto(terrain: Terrain, tx: number, tz: number): number {
+  if (terrain.isSwamp(tx, tz)) return SWAMP_ROLL_TICKS;
+  if (terrain.isGrass(tx, tz)) return GRASS_ROLL_TICKS;
+  return ROLL_TICKS;
 }
 
 export function canLeapDir(terrain: Terrain, x: number, z: number, dir: number): boolean {
@@ -180,7 +188,8 @@ function tryMove(w: Mover, dir: number): void {
   const tz = w.z + dz;
   if (canRollTo(w.terrain, w.x, w.z, tx, tz) && !w.occupied(tx, tz)) {
     const nextOri = rollTowardDir(w.orientation, dir);
-    beginMove(w, MODE_ROLL, dir, ROLL_TICKS, tx, w.terrain.height(tx, tz), tz, nextOri);
+    const ticks = rollTicksInto(w.terrain, tx, tz);
+    beginMove(w, MODE_ROLL, dir, ticks, tx, w.terrain.height(tx, tz), tz, nextOri);
     return;
   }
   w.flags |= FLAG_REFUSE;
@@ -193,7 +202,13 @@ function startTuck(w: Mover, dir: number): void {
 
 function tryJump(w: Mover): void {
   if (w.mode !== MODE_IDLE) {
-    if (w.mode === MODE_ROLL || w.mode === MODE_AIR || w.mode === MODE_SLIDE) w.jumpBuf = JUMP_BUFFER_TICKS;
+    if (w.mode === MODE_ROLL || w.mode === MODE_AIR || w.mode === MODE_SLIDE)
+      w.jumpBuf = JUMP_BUFFER_TICKS;
+    return;
+  }
+  if (w.terrain.isWater(w.x, w.z)) {
+    w.flags |= FLAG_REFUSE;
+    w.jumpBuf = 0;
     return;
   }
   beginMove(w, MODE_CROUCH, DIR_NONE, CROUCH_TICKS, w.x, w.h, w.z, w.orientation);

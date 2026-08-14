@@ -8,6 +8,7 @@ export const PACKAGE_GRAPH: Record<string, readonly string[]> = {
   platform: ["sim"],
   tools: ["sim", "content", "render", "ui", "platform"],
   web: ["sim", "content", "render", "ui", "platform"],
+  terrain: ["sim", "tools"],
 };
 
 const IMPORT_RE = /from\s+["']@shapeland\/([a-z]+)(?:\/[^"']+)?["']/g;

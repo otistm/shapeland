@@ -9,3 +9,4 @@ export * from "./squash";
 export * from "./terrain-mat";
 export * from "./toon-ramp";
 export * from "./vfx";
+export * from "./water-mat";

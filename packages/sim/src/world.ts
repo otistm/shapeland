@@ -77,6 +77,7 @@ export class World {
   shrineTaken = 0;
   glyphTaken = 0;
   iceTaken = 0;
+  zigTaken = 0;
   iframes = 0;
   npcRange = 0;
   banner = 0;
@@ -186,6 +187,7 @@ export class World {
     w.shrineTaken = this.shrineTaken;
     w.glyphTaken = this.glyphTaken;
     w.iceTaken = this.iceTaken;
+    w.zigTaken = this.zigTaken;
     w.iframes = this.iframes;
     w.npcRange = this.npcRange;
     w.banner = this.banner;
@@ -301,6 +303,7 @@ function hashWorld(contentHash: number, tick: number, out: SimSnapshot, fireHash
   h = fnv1aU32(h, w.shrineTaken);
   h = fnv1aU32(h, w.glyphTaken);
   h = fnv1aU32(h, w.iceTaken);
+  h = fnv1aU32(h, w.zigTaken);
   h = fnv1aU32(h, w.iframes);
   h = fnv1aU32(h, w.npcRange);
   h = fnv1aU32(h, w.banner);

@@ -80,7 +80,10 @@ export function proveIce(): ProofLine[] {
   finishRoll(slick, BUTTON_E);
   log(
     lines,
-    slick.mode === MODE_SLIDE && slick.x === 1 && slick.destX === 3 && slick.destOri === slick.startOri,
+    slick.mode === MODE_SLIDE &&
+      slick.x === 1 &&
+      slick.destX === 3 &&
+      slick.destOri === slick.startOri,
     `roll onto ice begins a slide (${slick.mode} dest ${slick.destX}, destOri=startOri)`,
   );
   settle(slick);
@@ -108,7 +111,11 @@ export function proveIce(): ProofLine[] {
   freezeHere(walled);
   finishRoll(walled, BUTTON_E);
   settle(walled);
-  log(lines, walled.x === 1 && walled.mode === MODE_IDLE, "a wall stops the slide on the last valid cell");
+  log(
+    lines,
+    walled.x === 1 && walled.mode === MODE_IDLE,
+    "a wall stops the slide on the last valid cell",
+  );
 
   const blocked = new World({ seed: SEED, contentHash: CONTENT, slice: true });
   blocked.x = 1;
@@ -131,7 +138,9 @@ export function proveIce(): ProofLine[] {
   settle(melt);
   log(
     lines,
-    !iceHas(melt.ice, melt.iceCount, 0, 0) && iceHas(melt.ice, melt.iceCount, 1, 0) && melt.scorchCount === 1,
+    !iceHas(melt.ice, melt.iceCount, 0, 0) &&
+      iceHas(melt.ice, melt.iceCount, 1, 0) &&
+      melt.scorchCount === 1,
     "fire scorch melts only the scorched ice cell",
   );
 
@@ -155,7 +164,39 @@ export function proveIce(): ProofLine[] {
   pivot.step(BUTTON_E);
   log(lines, pivot.mode === MODE_TUCK && pivot.x === 0, "pivot on ice stays in place");
   settle(pivot);
-  log(lines, pivot.x === 0 && pivot.z === 0, "pivot landing does not slide");
+  log(
+    lines,
+    pivot.x === 0 && pivot.z === 0,
+    "pivot landing does not slide",
+  );
+
+  const footing = new Terrain();
+  footing.setSwamp(1, 0);
+  footing.setGrass(-1, 0);
+  footing.setWater(0, 1);
+  const kinds = new World({ seed: SEED, contentHash: CONTENT, terrain: footing });
+  freezeHere(kinds);
+  log(
+    lines,
+    !iceHas(kinds.ice, kinds.iceCount, 1, 0) &&
+      !iceHas(kinds.ice, kinds.iceCount, -1, 0) &&
+      iceHas(kinds.ice, kinds.iceCount, 0, 1) &&
+      iceHas(kinds.ice, kinds.iceCount, 0, 0),
+    "ice refuses swamp and grass, and still freezes water and dry ground",
+  );
+
+  const pond = new Terrain();
+  pond.setWater(1, 0);
+  pond.setWater(2, 0);
+  pond.setWater(3, 0);
+  const frozenPond = new World({ seed: SEED, contentHash: CONTENT, terrain: pond });
+  freezeHere(frozenPond);
+  finishRoll(frozenPond, BUTTON_E);
+  log(
+    lines,
+    frozenPond.mode === MODE_SLIDE && frozenPond.destX === 3,
+    "frozen water slides — a pond that froze is ice, not a lie",
+  );
 
   log(
     lines,
@@ -164,12 +205,13 @@ export function proveIce(): ProofLine[] {
     "Fire|Ice on an axis is a clash; adjacent faces are not",
   );
 
+  const iceX: number = ICE_GLYPH.x;
+  const iceZ: number = ICE_GLYPH.z;
+  const glyphX: number = GLYPH.x;
+  const glyphZ: number = GLYPH.z;
   log(
     lines,
-    ICE_GLYPH.x === 2 &&
-      ICE_GLYPH.z === -26 &&
-      regionOf(ICE_GLYPH.x, ICE_GLYPH.z, 1) === REGION_CHAMBER &&
-      !(ICE_GLYPH.x === GLYPH.x && ICE_GLYPH.z === GLYPH.z),
+    regionOf(iceX, iceZ, 1) === REGION_CHAMBER && (iceX !== glyphX || iceZ !== glyphZ),
     "optional ice glyph sits inside the chamber, off the lightning cell",
   );
 
