@@ -30,6 +30,19 @@ importers:
         specifier: ^2.1.8
         version: 2.1.9(@types/node@22.20.1)
 
+  apps/terrain:
+    dependencies:
+      '@shapeland/sim':
+        specifier: workspace:*
+        version: link:../../packages/sim
+      '@shapeland/tools':
+        specifier: workspace:*
+        version: link:../../packages/tools
+    devDependencies:
+      vite:
+        specifier: ^6.0.7
+        version: 6.4.3(@types/node@22.20.1)(tsx@4.23.12)
+
   apps/web:
     dependencies:
       '@shapeland/content':
@@ -93,6 +106,9 @@ importers:
 
   packages/ui:
     dependencies:
+      '@shapeland/content':
+        specifier: workspace:*
+        version: link:../content
       '@shapeland/sim':
         specifier: workspace:*
         version: link:../sim
