@@ -158,4 +158,25 @@ describe("qa-pad poller", () => {
     expect(held.risingCamCcw).toBe(false);
     expect(held.risingCamCw).toBe(false);
   });
+
+  it("maps right-stick X to look and LT/RT to zoom after the dead zone", () => {
+    const pad = fakePad({
+      axes: [0, 0, 0.9, 0],
+      buttons: { 7: true },
+    });
+    const poller = createPadPoller({ getGamepads: () => [pad] });
+    const live = poller.poll();
+    expect(live.lookX).toBeGreaterThan(0.8);
+    expect(live.zoomIn).toBe(1);
+    expect(live.zoomOut).toBe(0);
+    expect(live.mask).toBe(0);
+
+    pad.axes[2] = 0.37;
+    pad.buttons[7] = btn(false);
+    pad.buttons[6] = btn(true);
+    const dead = poller.poll();
+    expect(dead.lookX).toBe(0);
+    expect(dead.zoomIn).toBe(0);
+    expect(dead.zoomOut).toBe(1);
+  });
 });

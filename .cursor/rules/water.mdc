@@ -1,0 +1,57 @@
+---
+description: Water is Wallace's substance — heightfield, cube coupling, refraction, caustics
+alwaysApply: true
+---
+
+# Water
+
+Gold standard: [Evan Wallace's WebGL water](https://madebyevan.com/webgl-water/)
+([caustics](https://medium.com/@evanwallace/rendering-realtime-caustics-in-webgl-2a99a29a0b2c),
+[source](https://github.com/evanw/webgl-water)). Puddles must **look and behave** like that demo.
+A flat sheet, a tint, or a shader-only ripple is a regression.
+
+## Look (optics)
+
+- Tessellated **vertex-displaced** surface from a heightfield `(h, v, n.x, n.z)`.
+- **Shading normals come from the field**, never from noise alone. Noise is detail on the normal;
+  if the cube's dimple and wake do not change the lighting, the water is still a sticker.
+- Peaked normals (Wallace walks the sample along `n.xz`). IOR air 1 / water 1.333.
+- Fresnel mix of the **refracted pool floor** and the reflected sky, plus a sun spec.
+- Caustics are Jacobian (`oldArea/newArea` in **world xz**, one field texel apart) and belong
+  **on the pool floor**, not painted on the surface. Never `dFdx`/`dFdy`: those follow the
+  camera's pixel axes and hatch diagonally under the quarter-turn yaw. A light-space caustic
+  target is allowed but not required. Field samples pin `level(0)` so the tessellated film
+  cannot hatch from implicit LOD either.
+- The surface film is **thin face-on** (`WATER_SURFACE_ALPHA`) so the floor and the submerged cube
+  read through it, and opaque at grazing angles.
+- Below-water pass is deferred, not rejected: this camera cannot submerge under a 0.38 puddle, so
+  it would be dead code. Add it with the first swimmable body of water.
+- Palette stays earned teal `#2e5461`, distinct from ice, never near-white on this world.
+
+## Behave (coupling)
+
+- Wave equation, ping-pong: `v += (avg(h) − h) * 2; v *= 0.995; h += v`.
+- Cube occupancy uses Wallace `moveSphere` (add old volume, subtract new).
+- Land / splash is `addDrop`.
+- Visual Y uses Wallace sphere physics: `percentUnderWater`, reduced gravity, quadratic drag.
+  **Cell, orientation, and camera rest-height stay on the lattice.** Waves never shake the camera.
+
+```ts
+// ❌ BAD — film on the cell
+stampSheets(scene, waterMat, lift: 0.012);
+
+// ✅ GOOD — volume the cube occupies, field carves around it
+field.coupleCube(cube.x, cube.y, cube.z, waterPlaneY, inWater);
+material.positionNode = positionLocal.add(vec3(0, 0, fieldHeight));
+```
+
+## Allowed / forbidden
+
+- **Allowed in render:** GPU or CPU heightfield, vertex displacement, caustic RTT, two-pass water,
+  buoyancy/drag on visual Y. TSL only (`ShaderMaterial` is dead under `WebGPURenderer`).
+- **Forbidden:** reading the field back into sim; putting the clock uniform in both stages;
+  analog xz / ori; camera following wave height.
+- Clock stays fragment-owned (`onFrameUpdate`). Displacement must not sample that clock.
+- Reduced motion freezes ripples and physics; the dimple and waterline stay.
+
+See ADR 0013 and `.cursor/rules/canon.mdc`.

@@ -99,7 +99,7 @@ const GAP_CAP = 900;
 const WATER_CAP = 2600;
 const SWAMP_CAP = 900;
 const GRASS_CAP = 3200;
-const PIER_CAP = 800;
+const PIER_CAP = 3200;
 
 function cheb(ax: number, az: number, bx: number, bz: number): number {
   const dx = ax - bx;

@@ -95,6 +95,16 @@ consistency, throughput. **X** — Art Director over "good enough" (Director arb
 engineering over budgets (profiling, not debate). **F** — Assets that fail engine integration; no
 gold standard so the team calibrates on nothing; the lead doing hero assets instead of unblocking.
 
+## Lead Building Architect *[applied skill: brutalist-architecture]*
+
+**O** — How buildings are generated: brutalist axioms, archetypes, interior volumetric zoning, and
+the eight-step massing sequence. Distinct from Lead Architect (technical director) and from Lead
+CAD Developer (the generators). **D** — Massing protocol, kit members (`core`, `thickRing`, cave,
+fins), axiom audit. **M** — Whether a structure reads as load-bearing mass you enter. **X** —
+CAD over cantilevers (honest piers win; theatrical float is a pillar-2 lie); Level Design over
+interior flow. **F** — Decorating a butte and calling it a building; 1-cell fences as civic mass;
+mirrored civic blocks.
+
 ## Lead CAD Developer *[not standard; equivalent: Lead Procedural/Houdini Technical Artist]*
 
 **O** — Procedural and parametric asset generation systems, and the data path from authoring tools

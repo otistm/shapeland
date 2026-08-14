@@ -88,6 +88,9 @@ Districts are Lynch's districts: they need a common identifying character. With 
 that character is **silhouette rule + massing density + coursing pattern + ambient sound**. Assign
 each district one solid vocabulary (per *architecture parlante*: sealing authority = cube and
 stepped pyramid; sacred = stepped dome; danger = spike and inverted cone; ruined = broken prism).
+Authored buildings follow the brutalist archetypes in `docs/kb/architecture-and-construction.md` §8
+and skill `brutalist-architecture` — institutional bars, vertical grids, cultural fortresses.
+Landforms stay landforms.
 
 ## Scale is comparison, never absolute size
 

@@ -38,9 +38,13 @@ npm run prove            # after any restamp
   (`setPier`) are occupancy with visual height ≤ 21 (`STRUCTURE_PEAK_MAX`) — they are not a
   walkable heightmap value and do not grow an apron (ADR 0017).
 - Form is `bench` / `terracePool` / `terraceHill` / `raiseRect` for landforms, plus the structure
-  kit (`keep`, `ring`, `hypostyle`, `salk_court`, `habitat`) for interiors. No analog slopes.
+  kit (`keep`, `ring`, `thickRing`, `fill`, cave openings, fins, `hypostyle`, `salk_court`,
+  `habitat`) for interiors at castle / cathedral / shack scale. Civic shells are 2 cells;
+  cores are distinct towers; entries compress then release. Near-side piers cut away in
+  render. No analog slopes. Skill: `brutalist-architecture`.
 - A tall *landform* is broad. A 1:1 apron from 8 costs 8 cells of run per side. A tall *structure*
-  is a pier you walk into or around. No roofs: interiors are open-sky courts (2.5D).
+  is a pier you walk into or around. No roofs: interiors are open-sky courts (2.5D). Floating
+  cantilevers are a grammar lie — express lift as oversized piers and colonnade voids.
 - Named places are authored in `packages/tools/src/blank-plan.ts`; noise only fills between them.
 - Gaps never open in an apron: one could sever the only stair to a summit.
 - The bake is the floor mesh: 320 × 320 cells (`BLANK_X0..BLANK_X1`, `BLANK_Z0..BLANK_Z1`).

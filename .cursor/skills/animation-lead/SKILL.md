@@ -45,7 +45,8 @@ important sentence in this skill.
 Squash, stretch, dust, and lift live on the cube. **Never on the camera.** Traversal never shakes the
 camera — not "quietly", at all. Per-move shake re-seeds random offsets ~5×/s and reads as continuous
 dither. Shake is impact-only (all sources ≥ 0.05, labelled `// impact:`, QA-enforced), decaying with a
-hard floor (< 0.004 → 0) so impacts end cleanly.
+hard floor (< 0.004 → 0) so impacts end cleanly. Wallace water buoyancy bobs **visual Y only**; the
+camera still consumes resting ground height (`.cursor/rules/water.mdc`).
 
 ## The invariant your animation serves
 

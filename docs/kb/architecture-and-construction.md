@@ -67,7 +67,7 @@ Wayfinding practice (Lynch 1960 — paths, edges, districts, nodes, landmarks) t
 - **Scale is comparison, never absolute size.** (1) **Foreground occluders** — a 2u parapet in front of a 40u tower proves the tower. (2) **Atmospheric perspective** — use a *value* gradient: distant mass lightens toward sky, near mass holds crisp shadow. (3) **Repeated modules** — a 40u wall in countable 1u courses reads as 40 people tall; a smooth one is unreadable.
 - **Boullée and Ledoux** reduced architecture to "elementary geometric solids — the sphere, the cube, and the pyramid," working through "scale, symmetry, sharp lines, and bare surfaces." Boullée's 1784 **Cenotaph for Newton: a hollow sphere ~150 m (500 ft) across, taller than the Pyramids, on a stepped circular base, interior holding a tomb and empty space, "light would be its only ornament."** At 1u ≈ 2 m that is a **75u stepped sphere on a stepped base** — a ready-made monolith-shrine template.
 - **Architecture parlante** ("speaking architecture") = form alone explains function, which is literally Shapeland's brief. **Assign each function a solid: sealing authority = cube and stepped pyramid; sacred = stepped dome; danger = spike/inverted cone; ruined = broken prism.**
-- **Brutalism** supplies surface logic: unrelieved mass, repetition, deep reveals, sharp arrises. **Shadow depth is the only available ornament** — cut 1-cell reveals at Fibonacci intervals so raking light makes rhythm.
+- **Brutalism** supplies surface logic *and* the generation protocol. Unrelieved mass, repetition, deep reveals, sharp arrises. **Shadow depth is the only available ornament** — cut 1-cell reveals at Fibonacci intervals so raking light makes rhythm. The full axioms, archetypes, interior zoning, and eight-step sequence live in §8; the agent skill is `brutalist-architecture`.
 - **Kojima staging.** *Death Stranding* sets "massive, sharp-edged BRIDGES buildings" against desolate brutalist blocks and vast emptiness, so architecture reads as institutional dominion, and topography doubles as puzzle (a peak is an obstacle until it becomes a zipline anchor). **Steal the contrast: long empty traversal punctuated by a sudden hard-edged intrusion.**
 
 ## 7. Shapeland Metrics (unit cubes)
@@ -92,6 +92,48 @@ Wayfinding practice (Lynch 1960 — paths, edges, districts, nodes, landmarks) t
 
 ---
 
+## 8. Brutalist Generation Protocol
+
+This is the building-form contract for every authored structure. Landforms stay landforms (ADR 0017). A butte is climbed; a building is entered. Skill: `brutalist-architecture`.
+
+### Axioms
+
+1. **Honest structure.** The support grid is the facade. A mass that reads as lifted sits on oversized piers the cube can walk between. A cantilever with no backing is a grammar lie — pillar 2 forbids it. Corbel ≤ 1 cell/course, backing ≥ 3×, ≥ 4 courses. Pilotis in 2.5D are 2×2 piers plus colonnade voids, not a volume floating in air (there is no void under occupancy; a pier runs from y=0 to visual h).
+2. **Legible function.** Exterior massing names the interior. Service (stairs, shafts) is a distinct blank tower, never a hole punched in a wall.
+3. **Monumentality.** Regional monoliths are 21u occupancy (`STRUCTURE_PEAK_MAX`). Shells may sit at 13u (`STRUCTURE_MARK`) so cores and corner piers prove the taller mass. Walkable height stays ≤ 8.
+4. **Anti-ornament.** No applied decoration. Rhythm comes from repeated modules, deep reveals, and shadow.
+5. **Asymmetry.** Civic mass does not mirror. Symmetry is for seals and the shrine spine.
+
+### Archetypes → Blank kinds
+
+| Archetype | Protocol | Kind |
+|---|---|---|
+| Institutional megastructure | Paired bars or a terraced block; recessed ground as a colonnade; cores at opposing ends | `salk_court` |
+| High-density vertical grid | Sheer slab with balcony voids; taller blank core; one horizontal interruption | `habitat` |
+| Cultural fortress | Interlocking volumes; fortress base; cave gate (outer door wider than inner); offset core | `assembly`, `pylon_keep` |
+
+Hypostyle is the waffle slab in plan: the ceiling grid you cannot have (no roofs) expressed as a nave of piers.
+
+### Interiors
+
+The interior is the same mass, carved. Open sky is the honest 2.5D ceiling (ADR 0017).
+
+- **Every building is entered and walked.** A courtyard you glance into is not an interior. Each kind is a referenced place (castle, cathedral, shack) at metrics-table scale, with ≥ `INTERIOR_MIN` (160) walkable cells inside the shell, all reachable from the cave.
+- **Cave and canyon.** Compress, then release. A cave gate is a 2-cell-deep opening whose outer width exceeds the inner (public 5 → 3, or 3 → 1). The canyon is the hall or court. Metrics §7 still apply when the site can afford the 6× volume jump.
+- **Exposed systems.** HVAC and conduit are sub-cell and illegal. The building's circulatory system at this scale is the service core.
+- **Boundaries.** Walls on civic/fortress shells are 2 cells thick — a 1-cell ring is a fence. Floors are continuous; no decorative thresholds. Built-in seating is a height-1 `raiseRect` (topography, not furniture).
+- **Light.** Light wells are carved courts and skipped fin cells. Artificial fixtures are not a lattice primitive; the sky and the key light do the sculpting.
+
+### Sequence
+
+Site → cores → primary mass → carve voids → exaggerate piers → interior cave/canyon → light wells → axiom audit. If the result is delicate, mirrored, or applied rather than carved, recalculate.
+
+### What this is not
+
+Boullée's hollow 75u sphere and 55u world seals remain later primitives. Roofs, multi-storey sections, and analog brutalist meshes are still out. The kit grows by adding *members* (`core`, `thickRing`, `cave`, `fins`, `pierBlock`), not one-off geometry.
+
+---
+
 ## Sources
 
 - Ching, *Architecture: Form, Space and Order* Ch.7 — https://ia801505.us.archive.org/28/items/ArchitectureFormSpaceAndOrderCh7/Architecture_Form%20Space%20and%20Order_Ch7.pdf ; lecture deck on axis — http://users.etown.edu/w/wunderjt/Architecture%20Lectures/ART370%20Ching%20CH7%20PRINCIPLES.pdf
@@ -110,3 +152,4 @@ Wayfinding practice (Lynch 1960 — paths, edges, districts, nodes, landmarks) t
 - Boullée & Ledoux, the sublime — https://publicdomainreview.org/essay/designing-the-sublime/ ; Cenotaph for Newton — https://chiselandmouse.com/pages/cenotaph-for-isaac-newton-architecture ; architecture parlante — https://en.wikipedia.org/wiki/Architecture_parlante
 - Wayfinding without signage / Lynch — https://www.40city.com/articles/wayfinding-is-not-signage ; https://plotstuff.com/knowledge-base/what-is-wayfinding ; https://www.cannondesign.com/perspectives/five-human-variables-shape-wayfinding-buildings ; interior wayfinding review — https://pmc.ncbi.nlm.nih.gov/articles/PMC7677306/
 - Kojima / *Death Stranding* brutalist staging — https://bulletpointsmonthly.com/2020/01/15/unearthly_forms/ ; mountains as platforms — https://doi.org/10.1515/9781399519991-020
+- Brutalist generation axioms, archetypes, and interior zoning — project brief *Comprehensive Guide: AI Agent Protocols for Brutalist Architectural Design & Form*, adapted to the integer lattice and ADR 0017 (no floating cantilevers, no roofs, cores stand in for exposed services)

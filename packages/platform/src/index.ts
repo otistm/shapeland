@@ -109,6 +109,7 @@ export function bindKeyboard(
 export { loadLoadoutJson, saveLoadoutJson, readStore, writeStore } from "./storage";
 export {
   PAD_POLICY_MSG,
+  analogAxis,
   createPadPoller,
   probeGamepadApi,
   risingGroup,

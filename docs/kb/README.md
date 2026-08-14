@@ -9,7 +9,7 @@ flags what could not be verified. Role skills in `.cursor/skills/` link here rat
 |---|---|
 | [physics.md](physics.md) | Fixed timestep, determinism in TypeScript, integrators, movement without a physics engine, springs and smoothing, grid collision, plume physics, physics testing |
 | [geometry.md](geometry.md) | The 24 cube orientations, the parity theorem, verified roll tables, rolling-puzzle complexity, polyhedra as behavior grammar, SDFs, computational geometry |
-| [architecture-and-construction.md](architecture-and-construction.md) | Proportion and procession, structural load paths, corbelling math, modular coordination, stair geometry, FromSoft spatial techniques, monumentality, **the Shapeland metrics table** |
+| [architecture-and-construction.md](architecture-and-construction.md) | Proportion and procession, structural load paths, corbelling math, modular coordination, stair geometry, FromSoft spatial techniques, monumentality, **the Shapeland metrics table**, brutalist generation protocol |
 | [level-design.md](level-design.md) | The five terrain rules, blockout workflow and gates, reachability and socket proofs, pacing audit, the one-glance test, encounter placement |
 | [open-world-pacing.md](open-world-pacing.md) | What the "30–40 second rule" actually is, landmark theory, POI density, FromSoft and Kojima world structure, **Shapeland's cell-distance budgets** |
 | [shaders-and-webgpu.md](shaders-and-webgpu.md) | Part A: TSL, WGSL, toon ramps, noise, blackbody fire, lightning, compute particles, post. Part B: WebGPU support, cost model, compute, WebGPURenderer, headless CI |

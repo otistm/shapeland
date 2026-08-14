@@ -25,8 +25,8 @@ export const FALL_GRAV_MUL = 1.4;
 export const FALL_KILL_Y = -3.5;
 export const CLIFF_DELTA = 2;
 
-/** Pulled back ~15% from (0, 8, 15.45) so height-8 forms stay in frame. Pitch held at ~27.4°. */
-export const CAM_OFFSET = [0, 9.2, 17.77] as const;
+/** Pulled back so height-8 forms and 21u piers stay in frame. Pitch held at ~27.4°. Dist 22.0. */
+export const CAM_OFFSET = [0, 10.12, 19.53] as const;
 export const CAM_FOV = 42;
 export const CAM_AIM = 0.55;
 export const CAM_FOLLOW = 5.2;
@@ -35,6 +35,12 @@ export const CAM_LOOKAHEAD = 0.85;
 export const CAM_LOOKAHEAD_RATE = 4;
 /** Quarter-turn orbit. Stick mapping uses resting yaw, never this in-flight value. */
 export const CAM_YAW_RATE = 8;
+/** Right-stick yaw in quarter-turns per second at full deflection. */
+export const CAM_STICK_YAW = 2.1;
+export const CAM_ZOOM_MIN = 0.65;
+export const CAM_ZOOM_MAX = 1.4;
+/** Uniform offset scale per second at a fully held trigger. */
+export const CAM_ZOOM_RATE = 0.9;
 export const CAM_SHAKE_DECAY = 7.5;
 export const CAM_KICK_STIFF = 90;
 export const CAM_KICK_DAMP = 12;

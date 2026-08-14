@@ -28,6 +28,7 @@ export function stepSquash(
   flags: number,
   vy: number,
   dt: number,
+  wet = false,
 ): { sy: number; sxz: number } {
   if (mode === MODE_CROUCH) s.target = 0.7;
   else if (mode === MODE_ROLL) {
@@ -36,7 +37,7 @@ export function stepSquash(
   } else if (mode === MODE_TUCK) {
     if (phase === 1) s.target = 0.84;
     else if (phase > 8) s.target = 1;
-  } else s.target = 1;
+  } else s.target = wet ? 0.92 : 1;
 
   if ((flags & FLAG_REFUSE) !== 0) s.vel -= 2.2;
   if ((flags & FLAG_LAND) !== 0) s.vel -= 3.4;

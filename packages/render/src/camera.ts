@@ -8,7 +8,11 @@ import {
   CAM_LOOKAHEAD_RATE,
   CAM_OFFSET,
   CAM_SHAKE_DECAY,
+  CAM_STICK_YAW,
   CAM_YAW_RATE,
+  CAM_ZOOM_MAX,
+  CAM_ZOOM_MIN,
+  CAM_ZOOM_RATE,
   SHAKE_FLOOR,
   SHAKE_MIN,
 } from "@shapeland/sim";
@@ -35,6 +39,8 @@ export interface CameraRig {
   yawVisual: number;
   yawCos: number;
   yawSin: number;
+  /** Uniform scale of `CAM_OFFSET`. 1 is the authored pull-back. */
+  zoom: number;
 }
 
 export interface CameraInput {
@@ -51,6 +57,12 @@ export interface CameraInput {
   heightAt?: (x: number, z: number) => number;
   /** Reduced motion snaps the orbit; default eases at `CAM_YAW_RATE`. */
   reduced?: boolean;
+  /** Right-stick X after dead zone, −1..1. Look-right is positive. */
+  lookX?: number;
+  /** Right trigger 0..1, zoom in (shorter offset). */
+  zoomIn?: number;
+  /** Left trigger 0..1, zoom out (longer offset). */
+  zoomOut?: number;
 }
 
 function expSmooth(lambda: number, dt: number): number {
@@ -92,6 +104,18 @@ export function unwrapQuarter(visual: number, target: number): number {
   while (t - visual > 2) t -= 4;
   while (visual - t > 2) t += 4;
   return t;
+}
+
+export function wrapVisual(visual: number): number {
+  let v = visual % 4;
+  if (v < 0) v += 4;
+  return v;
+}
+
+export function clampZoom(zoom: number): number {
+  if (zoom < CAM_ZOOM_MIN) return CAM_ZOOM_MIN;
+  if (zoom > CAM_ZOOM_MAX) return CAM_ZOOM_MAX;
+  return zoom;
 }
 
 const YAW_SNAP = 1e-4;
@@ -249,6 +273,7 @@ export function createCameraRig(): CameraRig {
     yawVisual: 0,
     yawCos: 1,
     yawSin: 0,
+    zoom: 1,
   };
 }
 
@@ -273,19 +298,32 @@ export function stepCamera(rig: CameraRig, input: CameraInput, ready: { current:
   rig.target.y = groundY;
   rig.target.z = input.followZ + rig.lookAheadZ;
 
-  const yawTarget = unwrapQuarter(rig.yawVisual, rig.yaw);
-  if (input.reduced || !ready.current) {
-    rig.yawVisual = rig.yaw;
+  const lookX = input.lookX ?? 0;
+  const zoomIn = input.zoomIn ?? 0;
+  const zoomOut = input.zoomOut ?? 0;
+  const zoomDelta = (zoomOut - zoomIn) * CAM_ZOOM_RATE * input.dt;
+  if (zoomDelta !== 0) rig.zoom = clampZoom(rig.zoom + zoomDelta);
+
+  if (lookX !== 0) {
+    rig.yawVisual = wrapVisual(rig.yawVisual + lookX * CAM_STICK_YAW * input.dt);
+    const nearest = rig.yawVisual < 0 ? -Math.round(-rig.yawVisual) : Math.round(rig.yawVisual);
+    rig.yaw = wrapYaw(nearest);
   } else {
-    rig.yawVisual += (yawTarget - rig.yawVisual) * expSmooth(CAM_YAW_RATE, input.dt);
-    const d = yawTarget - rig.yawVisual;
-    if (d < YAW_SNAP && -d < YAW_SNAP) rig.yawVisual = rig.yaw;
+    const yawTarget = unwrapQuarter(rig.yawVisual, rig.yaw);
+    if (input.reduced || !ready.current) {
+      rig.yawVisual = rig.yaw;
+    } else {
+      rig.yawVisual += (yawTarget - rig.yawVisual) * expSmooth(CAM_YAW_RATE, input.dt);
+      const d = yawTarget - rig.yawVisual;
+      if (d < YAW_SNAP && -d < YAW_SNAP) rig.yawVisual = rig.yaw;
+    }
   }
   writeVisualBasis(rig);
-  const ox = visualOffsetX(rig);
-  const oz = visualOffsetZ(rig);
+  const zoom = rig.zoom;
+  const ox = visualOffsetX(rig) * zoom;
+  const oz = visualOffsetZ(rig) * zoom;
   const wantX = rig.target.x + ox;
-  let wantY = rig.target.y + CAM_OFFSET[1];
+  let wantY = rig.target.y + CAM_OFFSET[1] * zoom;
   const wantZ = rig.target.z + oz;
   if (input.heightAt) {
     const lift = occlusionLiftOffset(

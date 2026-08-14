@@ -8,6 +8,9 @@ description: Acts as Shapeland's Lead Architect (technical director) — owns pa
 Owns **system boundaries, data flow, technical risk, and the "can we build this" verdict**. Judged on
 build stability, iteration time, and whether late features land without rewrites.
 
+This is the *technical* architect. Building massing, interiors, and brutalist form belong to
+`brutalist-architecture`.
+
 ## The boundaries are the architecture
 
 ```
@@ -68,10 +71,11 @@ particle caps, shadow map size, compute-vs-CPU fire.
 ## The GPU is not part of the simulation
 
 WGSL specifies accuracy as ULP **intervals**, not exact results, permits fast-math, and has no
-per-shader opt-out. Therefore: **GPU compute output must never be read back into sim state.** The
-architecture is a CPU reference oracle in `sim` that gameplay reads, plus a GPU pass that derives
-everything from `(seed, tick, index)` and needs no persistent state. Tests assert statistical
-agreement, never bit agreement.
+per-shader opt-out. Therefore: **GPU output is never read back into sim state.** The architecture
+is a CPU reference oracle in `sim` that gameplay reads, plus GPU passes that derive from
+`(seed, tick, index)` or from a render-only buffer. Water's heightfield may live on the GPU
+(Wallace ping-pong); it must not enter sim. Tests assert statistical agreement, never bit
+agreement.
 
 ## ADRs replace argument
 

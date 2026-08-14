@@ -119,8 +119,9 @@ restated locally.
 **Movement** — `ROLL_DUR .19` · ease `t²(2.2−1.2t)` · `JUMP_V0 7.6` · `GRAV 25` · hang `2.3 @ .62`
 · `FLIGHT_DUR ≈ .72` · `LEAP_CELLS 2` · `JUMP_BUFFER .20` · `TUCK_DUR .34` · squash `300/21`.
 
-**Camera** — offset `(0, 9.2, 17.77)` · FOV 42 · aim `.55` · follow `5.2/s` · climb `4.5/s` ·
-lookahead `.85 @ 4/s` · fog `42/110` · shadow `±22/70`, radius 1.8, bias `−.0012`.
+**Camera** — offset `(0, 10.12, 19.53)` · FOV 42 · aim `.55` · follow `5.2/s` · climb `4.5/s` ·
+lookahead `.85 @ 4/s` · yaw orbit `8/s` · stick yaw `2.1` q/s · zoom `.65–1.4 @ .9/s` · fog `42/110` ·
+shadow `±22/70`, radius 1.8, bias `−.0012`.
 
 **Combat** — `AOE_R 1.55` · kill pad `+0.8` · turret aim `1.5` / cool `1.6` / range `6.5` · spin
 `.5 → +12·k^1.6` · `TELE 0xb8412a` · i-frames `1.0` · integrity `3`.
@@ -161,9 +162,9 @@ is proven in `tools/verify-cube-group.mjs` and must stay proven.
 
 ### Deliberately excluded, and why
 
-- **Free camera / analog orbit** — a 90° snap (integer yaw `0..3`, ADR 0018) is allowed so the
-  lattice stays axis-aligned. Stick mapping is camera-relative via `rotateDirMask`. Free orbit and
-  in-between yaws remain excluded: they would make axis-lock a coin flip.
+- **Free analog pitch / unconstrained orbit** — yaw is a quarter-turn index plus an analog
+  right-stick orbit that still reports the nearest lattice facing for stick lock (ADR 0018). Pitch
+  stays 27.4°. Zoom scales the offset, never FOV.
 - **A physics engine** — the grid IS the physics; determinism is what makes the proofs possible.
 - **Smooth terrain and ramps** — violates terrain rule 1; sub-cell height would break the
   quarter-turn invariant.

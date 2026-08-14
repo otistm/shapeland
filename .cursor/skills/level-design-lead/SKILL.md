@@ -22,7 +22,9 @@ breaks every socket proof. **A designer who wants a ramp wants a staircase.**
 
 Author terrain only through the sanctioned helpers — `bench(cx, cz, halfW, halfD, top, tread)`,
 `terracePool`, `terraceHill(cx, cz, peak)`, `raiseRect` — with `peak ≤ 8` (ADR 0015), writing to the
-single height map. One write site, always. **A tall form is broad:** a 1:1 apron from 8 costs 8 cells
+single height map. Author buildings through the structure kit (`core`, `thickRing`, `cave`, `fins`,
+`keep`, `ring`) so interiors are cave-then-canyon and cores read from outside. Skill:
+`brutalist-architecture`. One write site, always. **A tall form is broad:** a 1:1 apron from 8 costs 8 cells
 of run per side, so a height-8 landmark is ~19 cells across. That apron is the talus slope that keeps
 the summit climbable; never author a sheer mass. Named places are authored in `blank-plan.ts` and
 noise only fills between them. `npm run terrain` previews, `npm run terrain:audit` checks bands,

@@ -16,6 +16,8 @@ export const PAD_SPEAK = [3] as const;
 export const PAD_EQUIP = [9, 8] as const;
 export const PAD_CAM_CCW = [4] as const;
 export const PAD_CAM_CW = [5] as const;
+export const PAD_LT = 6;
+export const PAD_RT = 7;
 export const PAD_HAT_UP = 12;
 export const PAD_HAT_DOWN = 13;
 export const PAD_HAT_LEFT = 14;
@@ -34,6 +36,12 @@ export interface PadSample {
   risingEquip: boolean;
   risingCamCw: boolean;
   risingCamCcw: boolean;
+  /** Right-stick X after dead zone, −1..1. Look-right is positive. */
+  lookX: number;
+  /** Right trigger 0..1. */
+  zoomIn: number;
+  /** Left trigger 0..1. */
+  zoomOut: number;
 }
 
 export interface PadPoller {
@@ -99,6 +107,23 @@ function btnPressed(g: Gamepad, i: number): boolean {
   return !!g.buttons[i]?.pressed;
 }
 
+function triggerValue(g: Gamepad, i: number): number {
+  const b = g.buttons[i];
+  if (!b) return 0;
+  const v = b.value;
+  if (v > 0) return v > 1 ? 1 : v;
+  return b.pressed ? 1 : 0;
+}
+
+/** Scale an axis out of an inclusive dead zone. |v| < dead → 0. */
+export function analogAxis(v: number, dead: number): number {
+  const a = v < 0 ? -v : v;
+  if (a < dead) return 0;
+  const mag = (a - dead) / (1 - dead);
+  const s = v < 0 ? -1 : 1;
+  return s * (mag > 1 ? 1 : mag);
+}
+
 function firstPad(list: ArrayLike<Gamepad | null> | null): Gamepad | null {
   if (!list) return null;
   for (let i = 0; i < list.length; i++) {
@@ -160,6 +185,9 @@ export function createPadPoller(deps: PadDeps = {}): PadPoller {
     risingEquip: false,
     risingCamCw: false,
     risingCamCcw: false,
+    lookX: 0,
+    zoomIn: 0,
+    zoomOut: 0,
   };
   const log = deps.log ?? console.info;
 
@@ -196,6 +224,9 @@ export function createPadPoller(deps: PadDeps = {}): PadPoller {
     sample.risingEquip = false;
     sample.risingCamCw = false;
     sample.risingCamCcw = false;
+    sample.lookX = 0;
+    sample.zoomIn = 0;
+    sample.zoomOut = 0;
     if (wasConnected) {
       connected = false;
       id = "";
@@ -234,6 +265,9 @@ export function createPadPoller(deps: PadDeps = {}): PadPoller {
       sample.risingEquip = equip.any;
       sample.risingCamCcw = camCcw.any;
       sample.risingCamCw = camCw.any;
+      sample.lookX = analogAxis(g.axes[2] ?? 0, PAD_DEAD);
+      sample.zoomIn = triggerValue(g, PAD_RT);
+      sample.zoomOut = triggerValue(g, PAD_LT);
       // Pulse jump/pivot so a hold through a modal cannot rising-edge the sim on close.
       sample.mask = dir | (jump.any ? BUTTON_JUMP : 0) | (pivot.any ? BUTTON_PIVOT : 0);
       return sample;

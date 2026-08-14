@@ -94,8 +94,9 @@ Build these as first-class editor views, not debug afterthoughts:
 ## Templates over bespoke setups
 
 Provide a **kit of parts** — wall segment, pier, lintel, stair flight, corbel course, plinth,
-parapet, gate — each sized from the metrics table. Designers place parts; they do not author one-off
-geometry.
+parapet, gate, service core, thick ring, cave opening, fin reveal — each sized from the metrics
+table and the brutalist protocol. Designers place parts; they do not author one-off geometry.
+Skill: `brutalist-architecture`.
 
 Escalation rule from the industry seam: **a scripted pattern reused more than about three times, or
 appearing in a profiler hotspot, graduates to code.**

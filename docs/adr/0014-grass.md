@@ -17,8 +17,9 @@ same axis as swamp: **tempo**.
    a dry roll). Jump is allowed. No extra quarter-turn.
 3. **Meadows may sit on terraces and beside gaps.** Jump still works, so a grass rim is a legal leap
    pad. Wet cells stay 2 clear of gaps (ADR 0013); grass does not inherit that restriction.
-4. **Render is a static TSL sheet.** Sage `#5e7044` with fragment-only fbm grain, same instancing
-   path as swamp. No vertex displacement, no clock. Color exists only on grass cells.
+4. **Render is a TSL sheet.** Sage `#5e7044` with fragment-only fbm grain, same instancing path as
+   swamp. No vertex displacement. A slow clock is wind. **Roll lean is a fragment-domain offset
+   gated to the destination cell** — a global UV shift made every meadow tile crawl with the cube.
 5. **The Blank bake includes meadows.** `generateBlank` proposes 4-neighbor patches off the shrine
    spine and `SLICE_RESERVE`. `blank-stamp.ts` must equal that bake. Socket BFS pins stay — they
    count moves, not ticks.

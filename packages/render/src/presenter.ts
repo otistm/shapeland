@@ -39,13 +39,7 @@ import {
   Scene,
   WebGPURenderer,
 } from "three/webgpu";
-import {
-  clearCameraFeel,
-  createCameraRig,
-  lookAtY,
-  stepCamera,
-  turnCameraYaw,
-} from "./camera";
+import { clearCameraFeel, createCameraRig, lookAtY, stepCamera, turnCameraYaw } from "./camera";
 import { bakeFaceTextures } from "./faces";
 import { toNonIndexedFacets } from "./geometry";
 import { type InterpolatedFrame, interpolate } from "./interpolate";
@@ -62,6 +56,7 @@ export interface GamePresenter {
   /** Resting quarter-turn 0..3. Stick mapping must use this, never an in-between. */
   readonly yaw: number;
   turnCamera(delta: 1 | -1): void;
+  steerCamera(lookX: number, zoomIn: number, zoomOut: number): void;
   present(prev: SimSnapshot, cur: SimSnapshot, alpha: number, dt: number): InterpolatedFrame;
   resize(width: number, height: number): void;
   dispose(): void;
@@ -130,8 +125,12 @@ export async function createGamePresenter(
   const camera = new PerspectiveCamera(CAM_FOV, 1, 0.1, 200);
   const rig = createCameraRig();
   const camReady = { current: false };
+  let padLookX = 0;
+  let padZoomIn = 0;
+  let padZoomOut = 0;
 
-  scene.add(new HemisphereLight(HEMI_SKY, HEMI_GROUND, HEMI_INTENSITY));
+  const hemi = new HemisphereLight(HEMI_SKY, HEMI_GROUND, HEMI_INTENSITY);
+  scene.add(hemi);
   const sun = new DirectionalLight(SUN_COLOR, SUN_INTENSITY);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
@@ -171,13 +170,9 @@ export async function createGamePresenter(
   const vfx = createVfx(scene, rig);
   const worldView = opts.terrain ? createWorldView(scene, opts.terrain, faceTex) : null;
   const terrain = opts.terrain;
-  const heightAt = terrain
-    ? (x: number, z: number) => {
-        const ground = terrain.height(x, z);
-        const pier = terrain.wallHeight(x, z);
-        return pier > ground ? pier : ground;
-      }
-    : undefined;
+  // Terrain columns still lift the camera. Structure piers cut away in world-view —
+  // lifting over a 21u wall would pitch the quarter-turn rig at the sky.
+  const heightAt = terrain ? (x: number, z: number) => terrain.height(x, z) : undefined;
   let worldClock = 0;
   const reducedMotion = (): boolean =>
     typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -199,6 +194,11 @@ export async function createGamePresenter(
     turnCamera(delta) {
       turnCameraYaw(rig, delta);
     },
+    steerCamera(lookX, zoomIn, zoomOut) {
+      padLookX = lookX;
+      padZoomIn = zoomIn;
+      padZoomOut = zoomOut;
+    },
     present(prev, cur, alpha, dt) {
       const frame = interpolate(prev, cur, alpha);
       const reduced = reducedMotion();
@@ -213,6 +213,9 @@ export async function createGamePresenter(
           dt,
           heightAt,
           reduced,
+          lookX: padLookX,
+          zoomIn: padZoomIn,
+          zoomOut: padZoomOut,
         },
         camReady,
       );
@@ -224,6 +227,7 @@ export async function createGamePresenter(
         cur.move.flags,
         cur.move.vy,
         dt,
+        terrain?.isWater(cur.player.x, cur.player.z) === true,
       );
       const height = Math.max(0, frame.player.y - 0.5);
       const kAnchor = Math.min(1, height / 0.45);
@@ -248,6 +252,10 @@ export async function createGamePresenter(
         }
       }
 
+      const blank = cur.world.sliceOn === 0;
+      hemi.intensity = blank ? HEMI_INTENSITY * 1.18 : HEMI_INTENSITY;
+      sun.intensity = blank ? SUN_INTENSITY * 1.22 : SUN_INTENSITY;
+
       sun.position.set(
         frame.camera.followX + KEY_LIGHT[0] * rig.yawCos - KEY_LIGHT[2] * rig.yawSin,
         KEY_LIGHT[1],
@@ -265,7 +273,13 @@ export async function createGamePresenter(
         reduced,
       );
       worldClock += dt;
-      worldView?.present(cur, dt, worldClock, rig, reduced);
+      worldView?.present(cur, dt, worldClock, rig, reduced, {
+        x: cubeRig.position.x,
+        y: cubeRig.position.y,
+        z: cubeRig.position.z,
+      });
+      // Wallace buoyancy, visual only. The camera already committed to resting ground height.
+      if (worldView) cubeRig.position.y += worldView.waterBob;
 
       if (reduced) clearCameraFeel(rig);
       camera.position.set(rig.position.x, rig.position.y + rig.kickY, rig.position.z);

@@ -15,5 +15,6 @@ export const FRAME_BUDGET_MS = {
   input: 1,
   camera: 1,
   ice: 1,
-  water: 1,
+  /** Heightfield step + volume coupling + tessellated refracting surface + caustic floor. */
+  water: 3,
 } as const;

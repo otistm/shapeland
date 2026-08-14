@@ -32,6 +32,10 @@ Full design doc: `docs/DESIGN.md`. Knowledge base: `docs/kb/README.md`.
 - **Collision data ≠ render data.** Occupancy is a component query; meshes are a render-side
   mapping.
 - **Zero allocation in per-tick and per-frame hot paths.**
+- **Water is Wallace's substance.** Look and behavior match
+  https://madebyevan.com/webgl-water/ — heightfield, cube volume coupling, above/below refraction,
+  Jacobian caustics, visual buoyancy. Lattice xz/ori and camera rest-height do not follow the
+  waves. Details: `.cursor/rules/water.mdc`.
 
 ## Working rules
 

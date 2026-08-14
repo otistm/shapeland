@@ -92,9 +92,11 @@ any detail, and give every landmark a *unique* silhouette in its district.
 Assign each function a solid, per *architecture parlante*: sealing authority = cube and stepped
 pyramid; sacred = stepped dome; danger = spike and inverted cone; ruined = broken prism.
 
-**Brutalism supplies the surface logic:** unrelieved mass, repetition, deep reveals, sharp arrises.
-**Shadow depth is the only available ornament** — cut 1-cell reveals at Fibonacci intervals so raking
-light makes rhythm.
+**Brutalism supplies the surface logic and the generation protocol.** Unrelieved mass, repetition,
+deep reveals, sharp arrises. **Shadow depth is the only available ornament** — cut 1-cell reveals at
+Fibonacci intervals so raking light makes rhythm. Civic shells are 2 cells thick; service is a
+distinct blank tower; entries compress then release. Skill: `brutalist-architecture`.
+`docs/kb/architecture-and-construction.md` §8.
 
 ## Gold standard first
 

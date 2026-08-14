@@ -189,6 +189,13 @@ const boot = async () => {
     else if (routed.route === "close-equip") hud.commitEquip();
     if (sample.risingCamCw) turnCamera(1);
     if (sample.risingCamCcw) turnCamera(-1);
+    const camLive = !hud.modalOpen();
+    presenter.steerCamera(
+      camLive ? sample.lookX : 0,
+      camLive ? sample.zoomIn : 0,
+      camLive ? sample.zoomOut : 0,
+    );
+    camYaw = presenter.yaw;
     padMask = routed.mask;
     applyMask();
 

@@ -129,6 +129,11 @@ WGSL specifies accuracy as ULP intervals and permits fast-math. **Never read GPU
 into sim state.** Keep a small deterministic CPU parcel set as the oracle that gameplay reads, derive
 GPU particles from `(seed, tick, index)`, and assert statistical agreement only.
 
+**Water is the exception that proves the rule.** Wallace heightfield, `moveSphere` coupling, and
+sphere buoyancy/drag run in **render** against interpolated pose (`.cursor/rules/water.mdc`). They
+may bob visual Y. They must not write `cell`, `orientation`, or camera rest-height. Jump refuse
+stays a sim flag.
+
 ## Definition of done
 
 Determinism guarantees stated and asserted · replay identity green · movement equalities asserted at

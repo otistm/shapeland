@@ -35,8 +35,9 @@ Full plan in `docs/TOOLS-PLAN.md`. Ordered by iteration-time payback:
 3. **Golden-image harness** — retires "logic-verified, visually unverified".
 4. **Grid/level editor** — with a live link to a running game. The first slice is the
   **terrace-site generator** (`npm run terrain`, `docs/tools/terrain.md`): seeded Blank hills/gaps/
-  water/swamp that stamp through `terraceHill` / `setGap` / `setWater` / `setSwamp`, never analog
-  heightmaps or height-as-biome tints.
+  water/swamp that stamp through `terraceHill` / `setGap` / `setWater` / `setSwamp`, plus the
+  structure kit (`thickRing`, cores, cave gates) from `blank-plan.ts`. Never analog heightmaps or
+  height-as-biome tints. Building form: `brutalist-architecture`.
 5. **Budget sentinel** — frame, bundle, startup, and allocation budgets in CI.
 6. **Content schema validator** — build-time, not runtime.
 7. **Asset baker** — reproducible, content-addressed KTX2/glTF bakes.

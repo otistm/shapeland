@@ -18,7 +18,6 @@ import {
   SHAKE_SENTRY,
   SHRINE,
   SOCKET,
-  ZIG_SOCKET,
   type SimSnapshot,
   TELE_COLOR,
   TURRET_AIM_TICKS,
@@ -28,6 +27,7 @@ import {
   TURRET_STATE_AIM,
   TURRET_STATE_COOL,
   type Terrain,
+  ZIG_SOCKET,
 } from "@shapeland/sim";
 import {
   BoxGeometry,
@@ -47,12 +47,23 @@ import {
 } from "three/webgpu";
 import { type CameraRig, impactShake } from "./camera";
 import { toNonIndexedFacets } from "./geometry";
+import { pierCutawayDist2, pierCutawayHidden } from "./pier-cutaway";
 import { makeTerrainMaterials } from "./terrain-mat";
 import { makeToon } from "./toon";
+import { createWaterRide, stepWaterRide } from "./water-body";
+import {
+  WATER_SPLASH_LAND,
+  WATER_SPLASH_R,
+  WATER_SPLASH_ROLL,
+  WATER_SURFACE,
+  createWaterField,
+} from "./water-field";
 import {
   makeGrassMaterial,
   makeSwampMaterial,
+  makeWaterFloorMaterial,
   makeWaterMaterial,
+  surfaceBaseAttribute,
   surfaceCellAttribute,
 } from "./water-mat";
 
@@ -65,7 +76,19 @@ const TELE_RGB = new Color(TELE_COLOR);
 const TURRET_INK = new Color(INK);
 
 export interface WorldView {
-  present(snapshot: SimSnapshot, dt: number, clock: number, rig: CameraRig, reduced: boolean): void;
+  /**
+   * Visual Y offset from water buoyancy, written by the last `present`. Lattice position and
+   * camera resting height never see it.
+   */
+  readonly waterBob: number;
+  present(
+    snapshot: SimSnapshot,
+    dt: number,
+    clock: number,
+    rig: CameraRig,
+    reduced: boolean,
+    cube?: { x: number; y: number; z: number },
+  ): void;
   dispose(): void;
 }
 
@@ -140,6 +163,15 @@ function makePickup(
   return { icon, decal };
 }
 
+interface SheetOpts {
+  /** Quad edge. Water uses a full cell so neighbouring puddle cells form one continuous surface. */
+  size?: number;
+  segs?: number;
+  renderOrder?: number;
+  /** Emit `aBase` (resting surface Y) for shaders that need a real world-space point. */
+  base?: boolean;
+}
+
 /** One pooled instanced sheet per surface kind, anchored to the height map. */
 function stampSheets(
   scene: Scene,
@@ -147,14 +179,19 @@ function stampSheets(
   collect: (fn: (x: number, z: number) => void) => void,
   material: MeshBasicNodeMaterial,
   lift: number,
+  opts: SheetOpts = {},
 ): InstancedMesh {
   const cells: Array<readonly [number, number]> = [];
   collect((x, z) => {
     cells.push([x, z]);
   });
-  const geometry = new PlaneGeometry(SHEET_SIZE, SHEET_SIZE);
+  const size = opts.size ?? SHEET_SIZE;
+  const segs = opts.segs ?? 1;
+  const geometry = new PlaneGeometry(size, size, segs, segs);
   const aCell = surfaceCellAttribute(cells.length);
   geometry.setAttribute("aCell", aCell);
+  const aBase = opts.base ? surfaceBaseAttribute(cells.length) : null;
+  if (aBase) geometry.setAttribute("aBase", aBase);
   const mesh = new InstancedMesh(geometry, material, Math.max(1, cells.length));
   mesh.count = cells.length;
   const dummy = new Object3D();
@@ -164,15 +201,17 @@ function stampSheets(
     const x = cell[0];
     const z = cell[1];
     aCell.setXY(i, x, z);
+    aBase?.setX(i, terrain.height(x, z) + lift);
     dummy.position.set(x, terrain.height(x, z) + lift, z);
     dummy.rotation.set(-Math.PI / 2, 0, 0);
     dummy.updateMatrix();
     mesh.setMatrixAt(i, dummy.matrix);
   }
   aCell.needsUpdate = true;
+  if (aBase) aBase.needsUpdate = true;
   mesh.instanceMatrix.needsUpdate = true;
   mesh.frustumCulled = false;
-  mesh.renderOrder = 1;
+  mesh.renderOrder = opts.renderOrder ?? 1;
   mesh.castShadow = false;
   mesh.receiveShadow = false;
   scene.add(mesh);
@@ -266,14 +305,37 @@ export function createWorldView(
   });
   const pierMeshes: InstancedMesh[] = [];
   const pierDummy = new Object3D();
+  const pierBuckets: Array<{
+    mesh: InstancedMesh;
+    h: number;
+    xs: Int16Array;
+    zs: Int16Array;
+    hidden: Uint8Array;
+  }> = [];
+  const writePierMatrix = (
+    xs: Int16Array,
+    zs: Int16Array,
+    h: number,
+    i: number,
+    hide: number,
+  ): void => {
+    pierDummy.position.set(xs[i] ?? 0, h / 2, zs[i] ?? 0);
+    const s = hide === 1 ? 0 : 1;
+    pierDummy.scale.set(s, s, s);
+    pierDummy.rotation.set(0, 0, 0);
+    pierDummy.updateMatrix();
+  };
   for (const [h, cells] of pierCells) {
     const mesh = new InstancedMesh(new BoxGeometry(1, h, 1), ink, cells.length);
+    const xs = new Int16Array(cells.length);
+    const zs = new Int16Array(cells.length);
+    const hidden = new Uint8Array(cells.length);
     for (let i = 0; i < cells.length; i++) {
       const cell = cells[i];
       if (!cell) continue;
-      pierDummy.position.set(cell[0], h / 2, cell[1]);
-      pierDummy.rotation.set(0, 0, 0);
-      pierDummy.updateMatrix();
+      xs[i] = cell[0];
+      zs[i] = cell[1];
+      writePierMatrix(xs, zs, h, i, 0);
       mesh.setMatrixAt(i, pierDummy.matrix);
     }
     mesh.instanceMatrix.needsUpdate = true;
@@ -281,20 +343,39 @@ export function createWorldView(
     mesh.receiveShadow = true;
     scene.add(mesh);
     pierMeshes.push(mesh);
+    pierBuckets.push({ mesh, h, xs, zs, hidden });
   }
 
-  const water = makeWaterMaterial();
+  const field = createWaterField();
+  const water = makeWaterMaterial(field.texture);
+  const poolFloor = makeWaterFloorMaterial(field.texture);
   const swampMat = makeSwampMaterial();
   const grass = makeGrassMaterial();
+  // Two layers, like the demo: caustics live on the pool bottom, the refracting film sits above.
+  const poolMesh = stampSheets(
+    scene,
+    terrain,
+    (fn) => terrain.forEachWater(fn),
+    poolFloor.material,
+    0.012,
+    { size: 1, renderOrder: 1 },
+  );
   const waterMesh = stampSheets(
     scene,
     terrain,
     (fn) => terrain.forEachWater(fn),
     water.material,
-    0.012,
+    WATER_SURFACE,
+    { size: 1, segs: 10, renderOrder: 2, base: true },
   );
   const swampMesh = stampSheets(scene, terrain, (fn) => terrain.forEachSwamp(fn), swampMat, 0.01);
-  const grassMesh = stampSheets(scene, terrain, (fn) => terrain.forEachGrass(fn), grass.material, 0.008);
+  const grassMesh = stampSheets(
+    scene,
+    terrain,
+    (fn) => terrain.forEachGrass(fn),
+    grass.material,
+    0.008,
+  );
 
   const doorSlab = new Mesh(new BoxGeometry(0.98, 3.2, 0.6), ink);
   doorSlab.position.set(DOOR.x, 1.6, DOOR.z);
@@ -419,9 +500,14 @@ export function createWorldView(
   scene.add(flood);
 
   let lastFlagTick = -1;
+  const ride = createWaterRide();
+  let bobY = 0;
 
   return {
-    present(snapshot, dt, clock, rig, reduced) {
+    get waterBob() {
+      return bobY;
+    },
+    present(snapshot, dt, clock, rig, reduced, cube) {
       const w = snapshot.world;
       if (snapshot.tick !== lastFlagTick) {
         lastFlagTick = snapshot.tick;
@@ -430,10 +516,24 @@ export function createWorldView(
         if ((flags & FLAG_KILL) !== 0) impactShake(rig, SHAKE_SENTRY); // impact: sentry crack
         if ((flags & FLAG_DOOR) !== 0) impactShake(rig, SHAKE_DOOR); // impact: seal opening
         if ((flags & FLAG_BLAST) !== 0) impactShake(rig, SHAKE_BLAST); // impact: sentry blast
-        if ((flags & FLAG_LAND) !== 0 && terrain.isWater(snapshot.player.x, snapshot.player.z)) {
-          splashT = 0.28;
-          splash.position.set(snapshot.player.x, snapshot.player.y + 0.03, snapshot.player.z);
-          splash.visible = true;
+        // Every arrival in water throws a drop, not just a jump landing. Jump refuses from a wet
+        // cell (ADR 0013), so keying the splash off FLAG_LAND alone meant rolling — the only way
+        // a player ever actually enters water — never disturbed it.
+        const rollingIn =
+          snapshot.move.mode === MODE_ROLL &&
+          snapshot.move.phase === 1 &&
+          terrain.isWater(snapshot.move.destX, snapshot.move.destZ);
+        const landingIn =
+          (flags & FLAG_LAND) !== 0 && terrain.isWater(snapshot.player.x, snapshot.player.z);
+        if (rollingIn || landingIn) {
+          const sx = rollingIn ? snapshot.move.destX : snapshot.player.x;
+          const sz = rollingIn ? snapshot.move.destZ : snapshot.player.z;
+          field.addDrop(sx, sz, WATER_SPLASH_R, rollingIn ? WATER_SPLASH_ROLL : WATER_SPLASH_LAND);
+          if (landingIn) {
+            splashT = 0.28;
+            splash.position.set(sx, terrain.height(sx, sz) + WATER_SURFACE + 0.02, sz);
+            splash.visible = true;
+          }
         }
       }
 
@@ -466,8 +566,28 @@ export function createWorldView(
 
       npc.position.y = npcH + 0.72 + 0.07 * Math.sin(clock * 1.4);
       npc.rotation.y = clock * 0.35;
+      const cubeX = cube?.x ?? snapshot.player.x;
+      const cubeY = cube?.y ?? snapshot.player.y;
+      const cubeZ = cube?.z ?? snapshot.player.z;
+      const gx = Math.round(cubeX);
+      const gz = Math.round(cubeZ);
+      const inWater =
+        terrain.isWater(gx, gz) ||
+        terrain.isWater(snapshot.player.x, snapshot.player.z) ||
+        (snapshot.move.mode === MODE_ROLL &&
+          terrain.isWater(snapshot.move.destX, snapshot.move.destZ));
+      const restY = terrain.height(gx, gz) + WATER_SURFACE;
+      field.recenter(gx, gz);
+      field.coupleCube(cubeX, cubeY, cubeZ, restY, inWater);
+      field.step(reduced);
+      water.setFieldOrigin(field.originX, field.originZ);
+      poolFloor.setFieldOrigin(field.originX, field.originZ);
       water.setClock(reduced ? 0 : clock);
+      poolFloor.setClock(reduced ? 0 : clock);
       grass.setClock(reduced ? 0 : clock);
+      // A passing wake lifts the cube. It never pushes it down: the cube's bottom already rests on
+      // the cell floor, so a negative offset would clip straight into the terrain.
+      bobY = reduced ? 0 : stepWaterRide(ride, inWater ? field.sampleSmooth(cubeX, cubeZ) : 0, dt);
       if (
         !reduced &&
         snapshot.move.mode === MODE_ROLL &&
@@ -477,9 +597,37 @@ export function createWorldView(
         const t = dur > 0 ? snapshot.move.phase / dur : 0;
         const k = t * (1 - t) * 4;
         const dir = snapshot.move.dir;
-        grass.setLean((DIR_DX[dir] ?? 0) * k, (DIR_DZ[dir] ?? 0) * k);
+        grass.setLean(
+          (DIR_DX[dir] ?? 0) * k,
+          (DIR_DZ[dir] ?? 0) * k,
+          snapshot.move.destX,
+          snapshot.move.destZ,
+        );
       } else {
         grass.setLean(0, 0);
+      }
+
+      // Near-side structure piers scale to 0. Occupancy is unchanged; the far wall stays.
+      for (const bucket of pierBuckets) {
+        let dirty = false;
+        const n = bucket.xs.length;
+        for (let i = 0; i < n; i++) {
+          const d2 = pierCutawayDist2(
+            bucket.xs[i] ?? 0,
+            bucket.zs[i] ?? 0,
+            cubeX,
+            cubeZ,
+            rig.position.x,
+            rig.position.z,
+          );
+          const next = pierCutawayHidden(bucket.hidden[i] ?? 0, d2);
+          if (next === (bucket.hidden[i] ?? 0)) continue;
+          bucket.hidden[i] = next;
+          writePierMatrix(bucket.xs, bucket.zs, bucket.h, i, next);
+          bucket.mesh.setMatrixAt(i, pierDummy.matrix);
+          dirty = true;
+        }
+        if (dirty) bucket.mesh.instanceMatrix.needsUpdate = true;
       }
 
       for (let i = 0; i < TURRET_COUNT; i++) {
@@ -535,11 +683,21 @@ export function createWorldView(
       }
     },
     dispose() {
-      for (const mesh of [waterMesh, swampMesh, grassMesh, gapMesh, ...columnMeshes, ...pierMeshes]) {
+      for (const mesh of [
+        waterMesh,
+        poolMesh,
+        swampMesh,
+        grassMesh,
+        gapMesh,
+        ...columnMeshes,
+        ...pierMeshes,
+      ]) {
         mesh.removeFromParent();
         mesh.geometry.dispose();
       }
       water.material.dispose();
+      poolFloor.material.dispose();
+      field.texture.dispose();
       swampMat.dispose();
       grass.material.dispose();
     },

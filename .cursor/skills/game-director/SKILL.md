@@ -18,6 +18,8 @@ rather than inventing a preference.
 
 - Does it make the up-face matter more, or less? **Less is a no.**
 - Could a player predict this behavior from the shape alone? If not, redesign the shape.
+- Does this mass sit on something? A floating cantilever is a grammar lie; honest piers or a
+  corbel. Building form: `brutalist-architecture`.
 - Is this color earned? If not, remove it.
 - Does this teach with the body, or with text? Text is the fallback, never the plan.
 - Can it be proven? If it can be, it must be.

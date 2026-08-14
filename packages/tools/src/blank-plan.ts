@@ -105,6 +105,7 @@ const COTTON_CASTLE: District = {
     { name: "THE SPILL", x: -88, z: -76, ref: "Pamukkale terrace-mound pools" },
     { name: "THE FISSURE", x: -142, z: -84, ref: "Pamukkale fissure ridge" },
   ],
+  // Salk Institute: enclosed 33×29 campus, wing corridors, north hall, central court.
   structures: [{ kind: "salk_court", cx: -118, cz: -120 }],
 };
 
@@ -149,13 +150,13 @@ const THE_MITTENS: District = {
     { name: "THE SENTINEL", x: 140, z: -140, ref: "Sentinel Mesa" },
     { name: "THE EAST STAIR", x: 112, z: -72, ref: "Valley of the Gods approach, Utah" },
   ],
+  // Habitat 67 / shack cluster: 21×17 of four modules, south cave, terraces, taller core.
   structures: [{ kind: "habitat", cx: 140, cz: -140 }],
 };
 
 /**
- * Two keeps flanking the approach to the gauntlet. 21u Boston City Hall massing: you walk *into*
- * a sentinel (3×3 court, public door facing the axis) and *through* the 72-cell prospect between
- * them. Staging, not a climb — the old height-7 benches were a landform wearing a building's name.
+ * Two castle keeps flanking the approach to the gauntlet. Boston City Hall massing: 21×33
+ * shell, cave gate, antechamber, nave, and chapels. You walk *into* a sentinel.
  */
 const THE_WATCHERS: District = {
   name: "THE WATCHERS",
@@ -242,7 +243,8 @@ const THE_KNOLLS: District = {
  *
  * The one piece of deliberate architecture in a map of landforms, so it reads as made rather than
  * found — sealing authority is the stepped pyramid. The 1:2 plinth stays a landform you climb;
- * the 21u Kahn ring on the summit is a building you enter (monumental south gate, north closed).
+ * the 21u Kahn cathedral on the summit is a building you enter (33×33, 2-cell shell, cave
+ * south gate, offset core, north closed).
  */
 const THE_ZIGGURAT: District = {
   name: "THE ZIGGURAT",

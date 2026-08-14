@@ -33,6 +33,11 @@ measurement recorded beside it. Noise only dresses the ground between them. Add 
 `bench` / `terracePool` sites and POIs there, then run `validatePlan()` — it rejects a form that
 leaves the floor, enters the gauntlet reserve, crosses the shrine spine, or crowds a special.
 
+Buildings are the structure kit in `packages/sim/src/structure.ts`, not taller benches. Civic mass
+uses 2-cell shells, cave gates, service cores, and 13/21 height hierarchy. Skill:
+`brutalist-architecture`. `docs/kb/architecture-and-construction.md` §8. Do not dress a butte as a
+building.
+
 ## Workflow
 
 1. `npm run terrain` to preview a seed, or `generateBlank(seed)` in `@shapeland/tools`.

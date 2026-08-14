@@ -1,7 +1,17 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { CAM_AIM, CAM_CLIMB, CAM_FOV, CAM_OFFSET, CUBE_BODY, TOON_BANDS, UP } from "@shapeland/sim";
+import {
+  CAM_AIM,
+  CAM_CLIMB,
+  CAM_FOV,
+  CAM_OFFSET,
+  CAM_ZOOM_MAX,
+  CAM_ZOOM_MIN,
+  CUBE_BODY,
+  TOON_BANDS,
+  UP,
+} from "@shapeland/sim";
 import { describe, expect, it } from "vitest";
 import {
   cameraOffsetForYaw,
@@ -23,12 +33,12 @@ import { sampleToonRamp, toonRampBytes } from "./toon-ramp";
 
 describe("qa-cam", () => {
   it("matches the canonical offset, fov, aim, and yaw 0", () => {
-    expect(CAM_OFFSET).toEqual([0, 9.2, 17.77]);
+    expect(CAM_OFFSET).toEqual([0, 10.12, 19.53]);
     expect(CAM_FOV).toBe(42);
     expect(CAM_AIM).toBe(0.55);
     expect(cameraYawDeg()).toBeCloseTo(0, 5);
     expect(cameraPitchDeg()).toBeCloseTo(27.4, 1);
-    expect(cameraOffsetLength()).toBeCloseTo(20.0, 1);
+    expect(cameraOffsetLength()).toBeCloseTo(22.0, 1);
   });
 
   it("keeps pitch, distance, and axis-aligned offset at every quarter-turn", () => {
@@ -36,7 +46,7 @@ describe("qa-cam", () => {
       const [ox, oy, oz] = cameraOffsetForYaw(q);
       expect(oy).toBe(CAM_OFFSET[1]);
       expect(ox === 0 || oz === 0).toBe(true);
-      expect(Math.hypot(ox, oy, oz)).toBeCloseTo(20.0, 1);
+      expect(Math.hypot(ox, oy, oz)).toBeCloseTo(22.0, 1);
     }
     expect(cameraYawDeg(1)).toBeCloseTo(-90, 5);
     expect(Math.abs(cameraYawDeg(2))).toBeCloseTo(180, 5);
@@ -78,6 +88,32 @@ describe("qa-cam", () => {
     expect(rig.yawVisual).toBe(1);
     expect(rig.position.x).toBeCloseTo(-CAM_OFFSET[2], 1);
     expect(rig.position.z).toBeCloseTo(0, 1);
+  });
+
+  it("orbits from a held look stick without writing shake", () => {
+    const rig = createCameraRig();
+    const ready = { current: false };
+    stepCamera(rig, { followX: 0, followZ: 0, restY: 0, dt: 1 }, ready);
+    stepCamera(rig, { followX: 0, followZ: 0, restY: 0, dt: 1 / 120, lookX: 1 }, ready);
+    expect(rig.yawVisual).toBeGreaterThan(0);
+    expect(rig.shake).toBe(0);
+  });
+
+  it("zooms the offset uniformly and clamps", () => {
+    const rig = createCameraRig();
+    const ready = { current: false };
+    stepCamera(rig, { followX: 0, followZ: 0, restY: 0, dt: 1 }, ready);
+    const y0 = rig.position.y;
+    for (let i = 0; i < 240; i++) {
+      stepCamera(rig, { followX: 0, followZ: 0, restY: 0, dt: 1 / 120, zoomOut: 1 }, ready);
+    }
+    expect(rig.zoom).toBe(CAM_ZOOM_MAX);
+    expect(rig.position.y).toBeGreaterThan(y0);
+    expect(rig.shake).toBe(0);
+    for (let i = 0; i < 400; i++) {
+      stepCamera(rig, { followX: 0, followZ: 0, restY: 0, dt: 1 / 120, zoomIn: 1 }, ready);
+    }
+    expect(rig.zoom).toBe(CAM_ZOOM_MIN);
   });
 
   it("tracks resting ground height, not the cube's visual y", () => {

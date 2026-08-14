@@ -183,7 +183,10 @@ export function proveCamera(): ProofLine[] {
   const oz = yawRig.position.z - yawRig.target.z;
   log(
     lines,
-    yawRig.yaw === 1 && Math.abs(ox + CAM_OFFSET[2]) < 0.05 && Math.abs(oz) < 0.05 && yawRig.shake === 0,
+    yawRig.yaw === 1 &&
+      Math.abs(ox + CAM_OFFSET[2]) < 0.05 &&
+      Math.abs(oz) < 0.05 &&
+      yawRig.shake === 0,
     `quarter-turn yaw ${yawRig.yaw} settled (${ox.toFixed(2)}, ${oz.toFixed(2)}) axis-aligned, no shake`,
   );
 

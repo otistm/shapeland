@@ -39,7 +39,8 @@ meaningless and makes content-addressed caching impossible.
 ## The kit of parts
 
 Fix the vocabulary and generate members of it, never one-off geometry: **wall segment, pier, lintel,
-stair flight, corbel course, plinth, parapet, gate.** Each sized from the metrics table.
+stair flight, corbel course, plinth, parapet, gate, service core, thick ring, cave opening, fin
+reveal, 2×2 pier block.** Each sized from the metrics table and the brutalist protocol (§8).
 
 Real modular-coordination practice applies directly: openings are drawn **larger** than modular size
 and components **smaller**, to absorb tolerance. Keep large dimensions to the preferred multiples
@@ -50,9 +51,11 @@ and components **smaller**, to absorb tolerance. Keep large dimensions to the pr
 The world reads as *built*, so generated geometry must obey stacking. These are hard constraints on
 your parameter spaces, and the generator should refuse to produce violations:
 
-- **Corbelling, not cantilevers.** Maximum **1 cell of step-out per course**, backing mass ≥ **3×** the
-  projecting mass, over ≥ 4 courses. The block-stacking result is why: four cubes buy only ~1.04 units
-  of honest projection, and 4 units of overhang would need 31 blocks.
+- **Corbelling, not theatrical cantilevers.** Maximum **1 cell of step-out per course**, backing mass
+  ≥ **3×** the projecting mass, over ≥ 4 courses. The block-stacking result is why: four cubes buy
+  only ~1.04 units of honest projection, and 4 units of overhang would need 31 blocks. A brutalist
+  "lifted" volume is oversized 2×2 piers plus colonnade voids — occupancy has no void underneath
+  (ADR 0017). Skill: `brutalist-architecture`.
 - **Arches** need `S/2` of abutment on each side for a span `S`.
 - **Lintels** ≤ 3u, 5u absolute maximum.
 - **Piers:** footprint `d` supports `7d–10d` of height at `2.25d–3d` spacing.

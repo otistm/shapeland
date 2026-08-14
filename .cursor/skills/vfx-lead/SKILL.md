@@ -106,6 +106,14 @@ readability**. Non-negotiables:
 - **Reduced motion must not cost readability** — telegraphs never rely on motion.
 - **No effect lands render-side without its readability rule restated as a test.**
 
+## Water: Wallace is the bar
+
+Puddles look and behave like https://madebyevan.com/webgl-water/ (ADR 0013, `.cursor/rules/water.mdc`).
+Heightfield, cube volume coupling, above/below refraction, Jacobian caustics, underwater tint,
+visual buoyancy. Not a film on the cell. Palette stays earned teal on white — saturation, not
+near-white crests. TSL only. GPU field is render-only; never read back into sim. Reduced motion
+keeps the dimple and waterline.
+
 ## GPU compute particles
 
 Where WebGPU is present, the plume moves to a compute pass at 10–50k particles. **The verified CPU

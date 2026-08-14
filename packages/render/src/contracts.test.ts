@@ -62,6 +62,15 @@ describe("render contracts", () => {
     expect(hits).toEqual([]);
   });
 
+  it("lifts the camera over terrain columns, not structure piers", () => {
+    const src = readFileSync(join(RENDER_SRC, "presenter.ts"), "utf8");
+    const heightAt = src.slice(src.indexOf("const heightAt"), src.indexOf("let worldClock"));
+    expect(heightAt.includes("wallHeight")).toBe(false);
+    expect(heightAt.includes("terrain.height")).toBe(true);
+    const view = readFileSync(join(RENDER_SRC, "world-view.ts"), "utf8");
+    expect(view.includes("pierCutawayDist2")).toBe(true);
+  });
+
   it("never lets traversal write shake", () => {
     const src = readFileSync(join(RENDER_SRC, "camera.ts"), "utf8");
     const step = src.slice(
