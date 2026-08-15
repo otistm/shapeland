@@ -29,6 +29,7 @@ import {
 } from "@shapeland/sim";
 import type { AbilityCanvases } from "./canvases";
 import { abilityUrls } from "./canvases";
+import { COMPASS_CYCLES, COMPASS_MARKS, COMPASS_QUARTER_PX, compassTapeX } from "./compass";
 import {
   DRAG_SLOP,
   type DragState,
@@ -43,7 +44,7 @@ import {
 } from "./equip-net";
 
 export interface HudHandle {
-  render(snapshot: SimSnapshot, alpha: number, backend?: string): void;
+  render(snapshot: SimSnapshot, alpha: number, backend?: string, heading?: number): void;
   dispose(): void;
   setPadConnected(connected: boolean): void;
   announce(text: string, ms?: number): void;
@@ -83,6 +84,25 @@ export function mountHud(host: HTMLElement, opts: HudOptions): HudHandle {
     for (let i = 0; i < INTEGRITY; i++) pips.appendChild(document.createElement("i"));
   }
 
+  const compass = document.createElement("div");
+  compass.id = "compass";
+  compass.setAttribute("aria-hidden", "true");
+  const compassNeedle = document.createElement("div");
+  compassNeedle.className = "needle";
+  const compassTape = document.createElement("div");
+  compassTape.className = "tape";
+  for (let cycle = 0; cycle < COMPASS_CYCLES; cycle++) {
+    for (const mark of COMPASS_MARKS) {
+      const cell = document.createElement("div");
+      cell.className = mark === "N" ? "mark north" : "mark";
+      cell.style.width = `${COMPASS_QUARTER_PX}px`;
+      cell.innerHTML = `<i></i><span>${mark}</span>`;
+      compassTape.appendChild(cell);
+    }
+  }
+  compass.appendChild(compassTape);
+  compass.appendChild(compassNeedle);
+
   const topbar = document.createElement("div");
   topbar.id = "topbar";
   const camCcwBtn = document.createElement("button");
@@ -121,6 +141,7 @@ export function mountHud(host: HTMLElement, opts: HudOptions): HudHandle {
   const ghost = document.createElement("div");
   ghost.id = "ghost";
 
+  root.appendChild(compass);
   root.appendChild(armed);
   root.appendChild(topbar);
   root.appendChild(overlay);
@@ -222,6 +243,7 @@ export function mountHud(host: HTMLElement, opts: HudOptions): HudHandle {
   let locUntil = 0;
   let bannerUntil = 0;
   let lastBannerTick = -1;
+  let lastHeading = Number.POSITIVE_INFINITY;
   let padConnected = false;
   let drag: DragState | null = null;
   let selected: number | null = null;
@@ -461,8 +483,12 @@ export function mountHud(host: HTMLElement, opts: HudOptions): HudHandle {
   };
 
   return {
-    render(snapshot, alpha, backend) {
+    render(snapshot, alpha, backend, heading = 0) {
       latest = snapshot;
+      if (heading !== lastHeading) {
+        lastHeading = heading;
+        compassTape.style.transform = `translate3d(${compassTapeX(heading)}px,0,0)`;
+      }
       const up = UP(snapshot.player.orientation);
       const down = DOWN(snapshot.player.orientation);
       const upKind = kindOf(snapshot.player.faces[up] ?? 0);

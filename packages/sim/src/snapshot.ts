@@ -1,4 +1,5 @@
 import { FIRE_MAX, ICE_MAX, SCORCH_MAX, TURRET_COUNT } from "./constants";
+import { HOSTILE_COUNT } from "./hostile-sites";
 
 export interface LayeredHashes {
   player: number;
@@ -84,6 +85,16 @@ export interface WorldSliceSnapshot {
   teleN: Uint8Array;
   teleX: Int8Array;
   teleZ: Int8Array;
+  hostileAlive: Uint8Array;
+  hostileKind: Uint8Array;
+  hostileX: Int16Array;
+  hostileZ: Int16Array;
+  hostileState: Uint8Array;
+  hostileT: Uint16Array;
+  hostileResist: Uint8Array;
+  hostileTeleN: Uint8Array;
+  hostileTeleX: Int16Array;
+  hostileTeleZ: Int16Array;
 }
 
 export interface SimSnapshot {
@@ -170,6 +181,16 @@ export function createWorldSliceSnapshot(): WorldSliceSnapshot {
     teleN: new Uint8Array(TURRET_COUNT),
     teleX: new Int8Array(TURRET_COUNT * 5),
     teleZ: new Int8Array(TURRET_COUNT * 5),
+    hostileAlive: new Uint8Array(HOSTILE_COUNT),
+    hostileKind: new Uint8Array(HOSTILE_COUNT),
+    hostileX: new Int16Array(HOSTILE_COUNT),
+    hostileZ: new Int16Array(HOSTILE_COUNT),
+    hostileState: new Uint8Array(HOSTILE_COUNT),
+    hostileT: new Uint16Array(HOSTILE_COUNT),
+    hostileResist: new Uint8Array(HOSTILE_COUNT),
+    hostileTeleN: new Uint8Array(HOSTILE_COUNT),
+    hostileTeleX: new Int16Array(HOSTILE_COUNT * 5),
+    hostileTeleZ: new Int16Array(HOSTILE_COUNT * 5),
   };
 }
 
@@ -297,6 +318,16 @@ export function copyWorldSlice(src: WorldSliceSnapshot, dest: WorldSliceSnapshot
   dest.teleN.set(src.teleN);
   dest.teleX.set(src.teleX);
   dest.teleZ.set(src.teleZ);
+  dest.hostileAlive.set(src.hostileAlive);
+  dest.hostileKind.set(src.hostileKind);
+  dest.hostileX.set(src.hostileX);
+  dest.hostileZ.set(src.hostileZ);
+  dest.hostileState.set(src.hostileState);
+  dest.hostileT.set(src.hostileT);
+  dest.hostileResist.set(src.hostileResist);
+  dest.hostileTeleN.set(src.hostileTeleN);
+  dest.hostileTeleX.set(src.hostileTeleX);
+  dest.hostileTeleZ.set(src.hostileTeleZ);
 }
 
 export function copySnapshot(src: SimSnapshot, dest: SimSnapshot): void {

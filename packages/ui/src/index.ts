@@ -1,3 +1,10 @@
+export {
+  COMPASS_CYCLES,
+  COMPASS_MARKS,
+  COMPASS_QUARTER_PX,
+  compassTapeX,
+  wrapHeading,
+} from "./compass";
 export type { AbilityCanvases } from "./canvases";
 export { abilityUrls, bakeAbilityCanvases } from "./canvases";
 export {

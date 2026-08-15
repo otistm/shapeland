@@ -21,15 +21,12 @@ import {
   FLAG_BLAST,
   FLAG_DOOR,
   FLAG_FALL_KILL,
-  FLAG_HURT,
   FLAG_KILL,
   FLAG_LAND,
   INTEGRITY,
-  I_FRAMES_TICKS,
   KILL_RANGE2,
   MODE_AIR,
   MODE_FALL,
-  MODE_IDLE,
   REGION_CHAMBER,
   REGION_GAUNTLET,
   RESPAWN_IFRAMES,
@@ -54,7 +51,11 @@ import {
   grantAbility,
 } from "./loadout";
 import { DOWN, UP } from "./orientation";
+import { hurt } from "./combat";
+import { HOSTILE_SPIKE_TICKS, hostileOccupies } from "./hostiles";
 import { type Terrain, bench, terraceHill, terracePool } from "./terrain";
+
+export { hurt, respawnAtAnchor } from "./combat";
 
 export const SHRINE = { x: 0, z: -7 } as const;
 export const SOCKET = { x: 0, z: -20 } as const;
@@ -129,6 +130,16 @@ export interface SliceHost {
   readonly teleN: Uint8Array;
   readonly teleX: Int8Array;
   readonly teleZ: Int8Array;
+  readonly hostileAlive: Uint8Array;
+  readonly hostileKind: Uint8Array;
+  readonly hostileX: Int16Array;
+  readonly hostileZ: Int16Array;
+  readonly hostileState: Uint8Array;
+  readonly hostileT: Uint16Array;
+  readonly hostileResist: Uint8Array;
+  readonly hostileTeleN: Uint8Array;
+  readonly hostileTeleX: Int16Array;
+  readonly hostileTeleZ: Int16Array;
 }
 
 export function stampSlice(terrain: Terrain): void {
@@ -186,7 +197,7 @@ export function occupied(w: SliceHost, x: number, z: number): boolean {
     if ((w.turretAlive & (1 << i)) === 0) continue;
     if (w.turretX[i] === x && w.turretZ[i] === z) return true;
   }
-  return false;
+  return hostileOccupies(w, x, z);
 }
 
 export function regionOf(x: number, z: number, doorOpen: number): number {
@@ -199,33 +210,6 @@ function dist2(ax: number, az: number, bx: number, bz: number): number {
   const dx = ax - bx;
   const dz = az - bz;
   return dx * dx + dz * dz;
-}
-
-function snapIdle(w: SliceHost, x: number, h: number, z: number, ori: number): void {
-  w.x = x;
-  w.h = h;
-  w.z = z;
-  w.orientation = ori;
-  w.mode = MODE_IDLE;
-  w.vy = 0;
-  w.airY = h + 0.5;
-}
-
-export function respawnAtAnchor(w: SliceHost): void {
-  snapIdle(w, w.spawnX, w.spawnH, w.spawnZ, w.spawnOri);
-  w.jumpBuf = 0;
-  w.pivotArmed = 0;
-  w.moveLock = 0;
-  w.integrity = INTEGRITY;
-  w.iframes = RESPAWN_IFRAMES;
-}
-
-export function hurt(w: SliceHost): void {
-  if (w.iframes > 0) return;
-  w.integrity -= 1;
-  w.iframes = I_FRAMES_TICKS;
-  w.flags |= FLAG_HURT;
-  if (w.integrity <= 0) respawnAtAnchor(w);
 }
 
 function stampDown(w: SliceHost, ability: number): void {
@@ -318,12 +302,17 @@ function stepTurrets(w: SliceHost): void {
         w.turretT[i] = 0;
         w.flags |= FLAG_BLAST;
         if (grounded && w.iframes <= 0 && onCross(w, i, px, pz)) hurt(w);
-        w.teleN[i] = 0;
       }
     } else if (state === TURRET_STATE_COOL) {
       const t = (w.turretT[i] ?? 0) + 1;
       w.turretT[i] = t;
-      if (t >= TURRET_COOL_TICKS) w.turretState[i] = TURRET_IDLE;
+      if (t <= HOSTILE_SPIKE_TICKS) {
+        if (grounded && w.iframes <= 0 && onCross(w, i, px, pz)) hurt(w);
+      } else w.teleN[i] = 0;
+      if (t >= TURRET_COOL_TICKS) {
+        w.turretState[i] = TURRET_IDLE;
+        w.teleN[i] = 0;
+      }
     }
   }
   w.aiming = aiming;

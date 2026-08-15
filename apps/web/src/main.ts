@@ -201,7 +201,7 @@ const boot = async () => {
 
     sim.frame(dt);
     presenter.present(sim.prev, sim.cur, sim.alpha, dt);
-    hud.render(sim.cur, sim.alpha, presenter.backend);
+    hud.render(sim.cur, sim.alpha, presenter.backend, presenter.yawVisual);
     requestAnimationFrame(frame);
   };
   requestAnimationFrame(frame);

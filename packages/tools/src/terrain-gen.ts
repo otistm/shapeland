@@ -19,12 +19,14 @@ import {
   BLANK_Z1,
   DOOR,
   GLYPH,
+  HOSTILE_SITES,
   ICE_GLYPH,
   NPC,
   SHRINE,
   SLICE_RESERVE,
   SOCKET,
   START,
+  ZIG_SOCKET,
   TERRAIN_FILLER_PEAK_MAX,
   TERRAIN_PEAK_MAX,
   TURRET_SITES,
@@ -226,6 +228,37 @@ export function validatePlan(): string[] {
   }
   for (const s of planStructures()) {
     check(`structure ${s.kind} at (${s.cx}, ${s.cz})`, structureExtent(s));
+  }
+  const seen = new Set<string>();
+  for (const [kind, x, z] of HOSTILE_SITES) {
+    const label = `hostile ${kind} at (${x}, ${z})`;
+    if (!inBounds(x, z)) problems.push(`${label} sits off the floor mesh`);
+    if (inReserve(x, z)) problems.push(`${label} sits inside the gauntlet reserve`);
+    if (onSpine(x, z)) problems.push(`${label} sits on the shrine spine`);
+    if (x === START.x || x === ZIG_SOCKET.x) {
+      problems.push(`${label} occupies a socket column`);
+    }
+    const key = `${x},${z}`;
+    if (seen.has(key)) problems.push(`${label} shares a cell with another hostile`);
+    seen.add(key);
+    for (const [sx, sz] of SPECIALS) {
+      if (cheb(x, z, sx, sz) < 2) {
+        problems.push(`${label} comes within 2 cells of the special at (${sx}, ${sz})`);
+      }
+    }
+    for (const s of planStructures()) {
+      if (chebToBox(x, z, structureExtent(s)) < 2) {
+        problems.push(`${label} comes within 2 cells of ${s.kind} at (${s.cx}, ${s.cz})`);
+      }
+    }
+    for (const poi of planPois()) {
+      if (poi.x === x && poi.z === z) problems.push(`${label} sits on POI ${poi.name}`);
+    }
+    const adx = x < 0 ? -x : x;
+    const adz = z < 0 ? -z : z;
+    if ((adx > adz ? adx : adz) < 22) {
+      problems.push(`${label} is inside the opening air around start`);
+    }
   }
   return problems;
 }

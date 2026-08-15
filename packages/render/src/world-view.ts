@@ -9,6 +9,13 @@ import {
   FLAG_KILL,
   FLAG_LAND,
   GLYPH,
+  HOSTILE_CONE_SPIRE,
+  HOSTILE_CONE_WATCH,
+  HOSTILE_COUNT,
+  HOSTILE_SITES,
+  HOSTILE_SPIKE_TICKS,
+  HOSTILE_TETRA,
+  TURRET_RANGE2,
   ICE_GLYPH,
   MODE_ROLL,
   NPC,
@@ -26,6 +33,8 @@ import {
   TURRET_SITES,
   TURRET_STATE_AIM,
   TURRET_STATE_COOL,
+  hostileAimTicks,
+  hostileRange2,
   type Terrain,
   ZIG_SOCKET,
 } from "@shapeland/sim";
@@ -47,6 +56,7 @@ import {
 } from "three/webgpu";
 import { type CameraRig, impactShake } from "./camera";
 import { toNonIndexedFacets } from "./geometry";
+import { createLunge, spikeRise, stepLunge } from "./lunge";
 import { pierCutawayDist2, pierCutawayHidden } from "./pier-cutaway";
 import { makeTerrainMaterials } from "./terrain-mat";
 import { makeToon } from "./toon";
@@ -72,8 +82,21 @@ const INK = 0x2e2e38;
 const SHEET_SIZE = 0.96;
 const TURRET_R = 0.86;
 const TURRET_H = 1.8;
+const WATCH_R = 1.15;
+const WATCH_H = 2.8;
+const SPIRE_R = 1.45;
+const SPIRE_H = 4.4;
+const TETRA_R = 0.95;
+const TETRA_H = 1.55;
 const TELE_RGB = new Color(TELE_COLOR);
 const TURRET_INK = new Color(INK);
+
+function hostileSize(kind: number): { r: number; h: number } {
+  if (kind === HOSTILE_CONE_WATCH) return { r: WATCH_R, h: WATCH_H };
+  if (kind === HOSTILE_CONE_SPIRE) return { r: SPIRE_R, h: SPIRE_H };
+  if (kind === HOSTILE_TETRA) return { r: TETRA_R, h: TETRA_H };
+  return { r: TURRET_R, h: TURRET_H };
+}
 
 export interface WorldView {
   /**
@@ -477,6 +500,75 @@ export function createWorldView(
     planes.push(row);
   }
 
+  const spikeGeo = toNonIndexedFacets(new ConeGeometry(0.2, 0.92, 3));
+  const makeSpikeRow = (): Mesh[] => {
+    const row: Mesh[] = [];
+    for (let k = 0; k < 5; k++) {
+      const p = new Mesh(
+        spikeGeo,
+        new MeshBasicNodeMaterial({
+          color: TELE_COLOR,
+          fog: false,
+        }),
+      );
+      p.visible = false;
+      p.castShadow = true;
+      scene.add(p);
+      row.push(p);
+    }
+    return row;
+  };
+  const turretSpikes: Mesh[][] = [];
+  const turretLunges = Array.from({ length: TURRET_COUNT }, () => createLunge());
+  for (let i = 0; i < TURRET_COUNT; i++) turretSpikes.push(makeSpikeRow());
+
+  const scoutGeo = toNonIndexedFacets(new ConeGeometry(TURRET_R, TURRET_H, 4));
+  const watchGeo = toNonIndexedFacets(new ConeGeometry(WATCH_R, WATCH_H, 4));
+  const spireGeo = toNonIndexedFacets(new ConeGeometry(SPIRE_R, SPIRE_H, 4));
+  const tetraGeo = toNonIndexedFacets(new ConeGeometry(TETRA_R, TETRA_H, 3));
+  const hostiles: Mesh[] = [];
+  const hostileMats: ReturnType<typeof makeToon>[] = [];
+  const hostilePlanes: Mesh[][] = [];
+  const hostileSpin = new Float64Array(HOSTILE_COUNT);
+  for (let i = 0; i < HOSTILE_COUNT; i++) {
+    const kind = HOSTILE_SITES[i]?.[0] ?? 0;
+    const geo =
+      kind === HOSTILE_TETRA
+        ? tetraGeo
+        : kind === HOSTILE_CONE_SPIRE
+          ? spireGeo
+          : kind === HOSTILE_CONE_WATCH
+            ? watchGeo
+            : scoutGeo;
+    const mat = makeToon({ color: INK });
+    const mesh = new Mesh(geo, mat);
+    mesh.castShadow = true;
+    scene.add(mesh);
+    hostiles.push(mesh);
+    hostileMats.push(mat);
+    const row: Mesh[] = [];
+    for (let k = 0; k < 5; k++) {
+      const p = new Mesh(
+        new PlaneGeometry(0.94, 0.94),
+        new MeshBasicNodeMaterial({
+          color: TELE_COLOR,
+          transparent: true,
+          opacity: 0,
+          depthWrite: false,
+          fog: false,
+        }),
+      );
+      p.rotation.x = -Math.PI / 2;
+      p.visible = false;
+      scene.add(p);
+      row.push(p);
+    }
+    hostilePlanes.push(row);
+  }
+  const hostileSpikes: Mesh[][] = [];
+  const hostileLunges = Array.from({ length: HOSTILE_COUNT }, () => createLunge());
+  for (let i = 0; i < HOSTILE_COUNT; i++) hostileSpikes.push(makeSpikeRow());
+
   const npc = new Mesh(new OctahedronGeometry(0.46), makeToon({ color: INK }));
   npc.position.set(NPC.x, npcH + 0.72, NPC.z);
   npc.castShadow = true;
@@ -500,8 +592,37 @@ export function createWorldView(
   scene.add(flood);
 
   let lastFlagTick = -1;
+  let strikeBlast = false;
   const ride = createWaterRide();
   let bobY = 0;
+
+  const presentSpikes = (
+    row: Mesh[] | undefined,
+    teleX: ArrayLike<number>,
+    teleZ: ArrayLike<number>,
+    base: number,
+    n: number,
+    state: number,
+    t: number,
+    reducedMotion: boolean,
+  ): void => {
+    const rising = state === TURRET_STATE_COOL && t > 0 && t <= HOSTILE_SPIKE_TICKS;
+    const h = rising ? spikeRise(t, HOSTILE_SPIKE_TICKS, reducedMotion) : 0;
+    if (!row) return;
+    for (let k = 0; k < 5; k++) {
+      const p = row[k];
+      if (!p) continue;
+      if (rising && k < n && h > 0) {
+        const cx = teleX[base + k] ?? 0;
+        const cz = teleZ[base + k] ?? 0;
+        p.visible = true;
+        p.scale.set(1, h, 1);
+        p.position.set(cx, terrain.height(cx, cz) + 0.46 * h, cz);
+      } else {
+        p.visible = false;
+      }
+    }
+  };
 
   return {
     get waterBob() {
@@ -509,9 +630,11 @@ export function createWorldView(
     },
     present(snapshot, dt, clock, rig, reduced, cube) {
       const w = snapshot.world;
+      strikeBlast = false;
       if (snapshot.tick !== lastFlagTick) {
         lastFlagTick = snapshot.tick;
         const flags = snapshot.move.flags;
+        strikeBlast = (flags & FLAG_BLAST) !== 0;
         if ((flags & FLAG_HURT) !== 0) impactShake(rig, SHAKE_HURT); // impact: hurt
         if ((flags & FLAG_KILL) !== 0) impactShake(rig, SHAKE_SENTRY); // impact: sentry crack
         if ((flags & FLAG_DOOR) !== 0) impactShake(rig, SHAKE_DOOR); // impact: seal opening
@@ -639,10 +762,13 @@ export function createWorldView(
         const row = planes[i];
         if (!alive) {
           if (row) for (const p of row) p.visible = false;
+          const deadSpikes = turretSpikes[i];
+          if (deadSpikes) for (const p of deadSpikes) p.visible = false;
           continue;
         }
         const state = w.turretState[i] ?? 0;
         const t = w.turretT[i] ?? 0;
+        const n = w.teleN[i] ?? 0;
         let rate = 0.5;
         if (state === TURRET_STATE_AIM) {
           const k = t / TURRET_AIM_TICKS;
@@ -653,10 +779,32 @@ export function createWorldView(
         spin[i] = (spin[i] ?? 0) + dt * rate;
         mesh.rotation.y = (spin[i] ?? 0) + Math.PI / 4;
         const tx = TURRET_SITES[i]?.[0] ?? 0;
-        mesh.position.y = (turretH[i] ?? 0) + TURRET_H / 2 + 0.05 * Math.sin(clock * 2.1 + tx);
+        const tz = TURRET_SITES[i]?.[1] ?? 0;
+        const restY = (turretH[i] ?? 0) + TURRET_H / 2 + 0.05 * Math.sin(clock * 2.1 + tx);
+        const lunge = turretLunges[i];
+        if (lunge) {
+          stepLunge(
+            lunge,
+            tx,
+            restY,
+            tz,
+            cubeX,
+            cubeY,
+            cubeZ,
+            state,
+            t,
+            TURRET_AIM_TICKS,
+            strikeBlast && state === TURRET_STATE_COOL && t === 0,
+            dt,
+            reduced,
+            TURRET_RANGE2,
+            false,
+          );
+          mesh.position.set(tx + lunge.x, restY + lunge.y, tz + lunge.z);
+        } else mesh.position.set(tx, restY, tz);
+        presentSpikes(turretSpikes[i], w.teleX, w.teleZ, i * 5, n, state, t, reduced);
 
         const resist = w.turretResist[i] ?? 0;
-        const n = w.teleN[i] ?? 0;
         let glow = 0;
         if (row) {
           for (let k = 0; k < 5; k++) {
@@ -681,6 +829,87 @@ export function createWorldView(
         mat.color.copy(TURRET_INK).lerp(TELE_RGB, Math.min(0.75, gl * 0.55));
         if (resist > 0) mat.color.setRGB(0.28, 0.3, 0.36);
       }
+
+      for (let i = 0; i < HOSTILE_COUNT; i++) {
+        const mesh = hostiles[i];
+        const mat = hostileMats[i];
+        if (!mesh || !mat) continue;
+        const alive = (w.hostileAlive[i] ?? 0) !== 0;
+        mesh.visible = alive;
+        const row = hostilePlanes[i];
+        if (!alive) {
+          if (row) for (const p of row) p.visible = false;
+          const deadSpikes = hostileSpikes[i];
+          if (deadSpikes) for (const p of deadSpikes) p.visible = false;
+          continue;
+        }
+        const kind = w.hostileKind[i] ?? 0;
+        const size = hostileSize(kind);
+        const hx = w.hostileX[i] ?? 0;
+        const hz = w.hostileZ[i] ?? 0;
+        const ground = terrain.height(hx, hz);
+        const state = w.hostileState[i] ?? 0;
+        const t = w.hostileT[i] ?? 0;
+        const aimTicks = hostileAimTicks(kind);
+        const n = w.hostileTeleN[i] ?? 0;
+        let rate = 0.5;
+        if (state === TURRET_STATE_AIM) {
+          const k = t / aimTicks;
+          rate = 0.5 + k * k * 12;
+        } else if (state === TURRET_STATE_COOL) {
+          rate = 0.5 + 3.5 * (1 - t / TURRET_COOL_TICKS);
+        }
+        hostileSpin[i] = (hostileSpin[i] ?? 0) + dt * rate;
+        mesh.rotation.y = (hostileSpin[i] ?? 0) + Math.PI / 4;
+        const restY = ground + size.h / 2 + 0.05 * Math.sin(clock * 2.1 + hx);
+        const lunge = hostileLunges[i];
+        if (lunge) {
+          stepLunge(
+            lunge,
+            hx,
+            restY,
+            hz,
+            cubeX,
+            cubeY,
+            cubeZ,
+            state,
+            t,
+            aimTicks,
+            strikeBlast && state === TURRET_STATE_COOL && t === 0,
+            dt,
+            reduced,
+            hostileRange2(kind),
+            true,
+          );
+          mesh.position.set(hx + lunge.x, restY + lunge.y, hz + lunge.z);
+        } else mesh.position.set(hx, restY, hz);
+        presentSpikes(hostileSpikes[i], w.hostileTeleX, w.hostileTeleZ, i * 5, n, state, t, reduced);
+
+        const resist = w.hostileResist[i] ?? 0;
+        let glow = 0;
+        if (row) {
+          for (let k = 0; k < 5; k++) {
+            const p = row[k];
+            if (!p) continue;
+            if (state === TURRET_STATE_AIM && k < n) {
+              p.visible = true;
+              const cx = w.hostileTeleX[i * 5 + k] ?? 0;
+              const cz = w.hostileTeleZ[i * 5 + k] ?? 0;
+              p.position.set(cx, terrain.height(cx, cz) + 0.01, cz);
+              const kAim = t / aimTicks;
+              const pulse = 0.14 + 0.3 * kAim + 0.14 * Math.sin(clock * (8 + kAim * 14));
+              (p.material as MeshBasicNodeMaterial).opacity = pulse;
+              glow = Math.max(glow, pulse * 1.7);
+            } else {
+              p.visible = false;
+            }
+          }
+        }
+        if (state === TURRET_STATE_COOL && t < 12) glow = 1.6;
+        const gl = glow > 1.6 ? 1.6 : glow;
+        mat.color.copy(TURRET_INK).lerp(TELE_RGB, Math.min(0.75, gl * 0.55));
+        if (resist > 0) mat.color.setRGB(0.28, 0.3, 0.36);
+      }
     },
     dispose() {
       for (const mesh of [
@@ -691,6 +920,7 @@ export function createWorldView(
         gapMesh,
         ...columnMeshes,
         ...pierMeshes,
+        ...hostiles,
       ]) {
         mesh.removeFromParent();
         mesh.geometry.dispose();

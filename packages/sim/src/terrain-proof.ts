@@ -161,6 +161,8 @@ export function proveTerrain(): ProofLine[] {
   log(lines, peaksInRange, `every stamped height is an integer in 0..${TERRAIN_PEAK_MAX}`);
 
   const world = new World({ seed: 1, contentHash: 1, slice: true });
+  // Occupants are a component query, not the floor. The flood measures terrain.
+  world.hostileAlive.fill(0);
   const reachable = floorReachable(world);
   let summits = true;
   for (const [cx, cz] of [...SLICE_HILLS, ...BLANK_HILLS]) {

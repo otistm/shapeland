@@ -55,6 +55,8 @@ export interface GamePresenter {
   backend: RenderBackend;
   /** Resting quarter-turn 0..3. Stick mapping must use this, never an in-between. */
   readonly yaw: number;
+  /** Continuous orbit in quarter-turns. HUD compass only — never stick mapping. */
+  readonly yawVisual: number;
   turnCamera(delta: 1 | -1): void;
   steerCamera(lookX: number, zoomIn: number, zoomOut: number): void;
   present(prev: SimSnapshot, cur: SimSnapshot, alpha: number, dt: number): InterpolatedFrame;
@@ -190,6 +192,9 @@ export async function createGamePresenter(
     backend,
     get yaw() {
       return rig.yaw;
+    },
+    get yawVisual() {
+      return rig.yawVisual;
     },
     turnCamera(delta) {
       turnCameraYaw(rig, delta);

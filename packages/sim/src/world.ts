@@ -1,6 +1,7 @@
 import { ICE_MAX, INTEGRITY, SCORCH_MAX, TURRET_COUNT } from "./constants";
 import { FireField } from "./fire";
 import { fnv1aF64, fnv1aI32, fnv1aStart, fnv1aU8, fnv1aU32 } from "./hash";
+import { HOSTILE_COUNT, bootHostiles, stepHostiles } from "./hostiles";
 import { FACE_COUNT, facesLegal, grantAbility } from "./loadout";
 import { stepMovement } from "./movement";
 import { assertOrientationTables } from "./orientation";
@@ -94,6 +95,16 @@ export class World {
   readonly teleN = new Uint8Array(TURRET_COUNT);
   readonly teleX = new Int8Array(TURRET_COUNT * 5);
   readonly teleZ = new Int8Array(TURRET_COUNT * 5);
+  readonly hostileAlive = new Uint8Array(HOSTILE_COUNT);
+  readonly hostileKind = new Uint8Array(HOSTILE_COUNT);
+  readonly hostileX = new Int16Array(HOSTILE_COUNT);
+  readonly hostileZ = new Int16Array(HOSTILE_COUNT);
+  readonly hostileState = new Uint8Array(HOSTILE_COUNT);
+  readonly hostileT = new Uint16Array(HOSTILE_COUNT);
+  readonly hostileResist = new Uint8Array(HOSTILE_COUNT);
+  readonly hostileTeleN = new Uint8Array(HOSTILE_COUNT);
+  readonly hostileTeleX = new Int16Array(HOSTILE_COUNT * 5);
+  readonly hostileTeleZ = new Int16Array(HOSTILE_COUNT * 5);
 
   constructor(config: WorldConfig) {
     assertOrientationTables();
@@ -102,6 +113,7 @@ export class World {
     this.rng = createRngBank(this.seed);
     this.terrain = config.terrain ?? new Terrain();
     if (config.slice) bootSlice(this);
+    bootHostiles(this);
   }
 
   occupied(x: number, z: number): boolean {
@@ -114,6 +126,7 @@ export class World {
     stepMovement(this, mask | 0);
     stepVfx(this);
     stepSlice(this);
+    stepHostiles(this);
     sfc32Next(this.rng.world);
   }
 
@@ -200,6 +213,16 @@ export class World {
     w.teleN.set(this.teleN);
     w.teleX.set(this.teleX);
     w.teleZ.set(this.teleZ);
+    w.hostileAlive.set(this.hostileAlive);
+    w.hostileKind.set(this.hostileKind);
+    w.hostileX.set(this.hostileX);
+    w.hostileZ.set(this.hostileZ);
+    w.hostileState.set(this.hostileState);
+    w.hostileT.set(this.hostileT);
+    w.hostileResist.set(this.hostileResist);
+    w.hostileTeleN.set(this.hostileTeleN);
+    w.hostileTeleX.set(this.hostileTeleX);
+    w.hostileTeleZ.set(this.hostileTeleZ);
     out.hashes.player = hashPlayer(out);
     out.hashes.rng = hashRng(this.rng);
     out.hashes.world = hashWorld(this.contentHash, this.tick, out, hashFire(this.fire));
@@ -315,6 +338,16 @@ function hashWorld(contentHash: number, tick: number, out: SimSnapshot, fireHash
     h = fnv1aU32(h, w.turretT[i] ?? 0);
     h = fnv1aU8(h, w.turretResist[i] ?? 0);
     h = fnv1aU8(h, w.teleN[i] ?? 0);
+  }
+  for (let i = 0; i < HOSTILE_COUNT; i++) {
+    h = fnv1aU8(h, w.hostileAlive[i] ?? 0);
+    h = fnv1aU8(h, w.hostileKind[i] ?? 0);
+    h = fnv1aI32(h, w.hostileX[i] ?? 0);
+    h = fnv1aI32(h, w.hostileZ[i] ?? 0);
+    h = fnv1aU8(h, w.hostileState[i] ?? 0);
+    h = fnv1aU32(h, w.hostileT[i] ?? 0);
+    h = fnv1aU8(h, w.hostileResist[i] ?? 0);
+    h = fnv1aU8(h, w.hostileTeleN[i] ?? 0);
   }
   return h;
 }

@@ -12,6 +12,20 @@ import {
   TURRET_COUNT,
   TURRET_RANGE2,
 } from "./constants";
+import {
+  HOSTILE_AIM_TICKS,
+  HOSTILE_CONE_SCOUT,
+  HOSTILE_CONE_SPIRE,
+  HOSTILE_CONE_WATCH,
+  HOSTILE_COOL_TICKS,
+  HOSTILE_COUNT,
+  HOSTILE_SITES,
+  HOSTILE_SPIRE_AIM_TICKS,
+  HOSTILE_TETRA,
+  hostileAimTicks,
+  hostileRange2,
+  tetraSkipDir,
+} from "./hostiles";
 import { canLeapDir, canRollTo } from "./movement";
 import { DOWN, rollTowardDir } from "./orientation";
 import type { ProofLine } from "./orientation-group";
@@ -21,9 +35,11 @@ import {
   ICE_GLYPH,
   NPC,
   SHRINE,
+  SLICE_RESERVE,
   SOCKET,
   START,
   TURRET_SITES,
+  ZIG_SOCKET,
   occupied,
   regionOf,
   stampSlice,
@@ -346,6 +362,92 @@ export function proveWorld(): ProofLine[] {
     lines,
     canEscape && checked > 0,
     `every captured-cross cell escapes in ≤2 rolls (${checked} cells, windup ${TURRET_AIM_TICKS})`,
+  );
+
+  log(
+    lines,
+    HOSTILE_SITES.length === HOSTILE_COUNT && HOSTILE_COUNT > 20,
+    `Blank hosts ${HOSTILE_COUNT} authored hostiles`,
+  );
+  log(
+    lines,
+    HOSTILE_AIM_TICKS > 2 * 24 &&
+      HOSTILE_SPIRE_AIM_TICKS > HOSTILE_AIM_TICKS &&
+      HOSTILE_COOL_TICKS > I_FRAMES_TICKS,
+    `Blank windup ${HOSTILE_AIM_TICKS}/${HOSTILE_SPIRE_AIM_TICKS} covers ≥2 rolls; cool ${HOSTILE_COOL_TICKS} > i-frames`,
+  );
+
+  let kinds = 0;
+  let opening = true;
+  let columns = true;
+  let unique = true;
+  let walkable = true;
+  let clearReserve = true;
+  const seenH = new Set<string>();
+  for (const [kind, x, z] of HOSTILE_SITES) {
+    kinds |= 1 << kind;
+    const adx = x < 0 ? -x : x;
+    const adz = z < 0 ? -z : z;
+    if ((adx > adz ? adx : adz) < 22) opening = false;
+    if (x === START.x || x === ZIG_SOCKET.x) columns = false;
+    if (
+      x >= SLICE_RESERVE.x0 &&
+      x <= SLICE_RESERVE.x1 &&
+      z >= SLICE_RESERVE.z0 &&
+      z <= SLICE_RESERVE.z1
+    ) {
+      clearReserve = false;
+    }
+    const key = `${x},${z}`;
+    if (seenH.has(key)) unique = false;
+    seenH.add(key);
+    if (world.terrain.isWall(x, z) || world.terrain.isGap(x, z)) walkable = false;
+    if (hostileAimTicks(kind) <= 2 * 24) clearReserve = false;
+    if (kind === HOSTILE_TETRA) {
+      const skip = tetraSkipDir(x, z);
+      if (skip < 1 || skip > 4) walkable = false;
+    }
+  }
+  log(
+    lines,
+    (kinds & 15) === 15,
+    "Blank hostiles include scout, watch, spire, and tetra grammars",
+  );
+  log(lines, opening && unique && columns, "opening air stays clear; no socket columns; unique cells");
+  log(lines, walkable && clearReserve, "every hostile sits on walkable ground outside the reserve");
+  log(
+    lines,
+    hostileRange2(HOSTILE_CONE_WATCH) > hostileRange2(HOSTILE_CONE_SCOUT) &&
+      hostileRange2(HOSTILE_CONE_SPIRE) > hostileRange2(HOSTILE_CONE_WATCH) &&
+      hostileRange2(HOSTILE_TETRA) < hostileRange2(HOSTILE_CONE_SCOUT),
+    "difficulty is range and grammar, not hit points",
+  );
+
+  let maxHKills = 0;
+  for (let i = 0; i < HOSTILE_SITES.length; i++) {
+    const a = HOSTILE_SITES[i];
+    if (!a) continue;
+    let n = 0;
+    for (let j = 0; j < HOSTILE_SITES.length; j++) {
+      const b = HOSTILE_SITES[j];
+      if (!b) continue;
+      const dx = a[1] - b[1];
+      const dz = a[2] - b[2];
+      if (dx * dx + dz * dz <= KILL_RANGE2) n += 1;
+    }
+    if (n > maxHKills) maxHKills = n;
+  }
+  log(
+    lines,
+    maxHKills === 1,
+    `one fire blast cracks at most ${maxHKills} Blank hostile (want 1 — each kill is earned)`,
+  );
+
+  const first = HOSTILE_SITES[0];
+  log(
+    lines,
+    first?.[0] === HOSTILE_CONE_SCOUT && first?.[1] === 28 && first?.[2] === 8,
+    "first contact is the east scout, not a watch or spire",
   );
 
   return lines;
